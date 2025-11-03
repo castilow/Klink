@@ -1,0 +1,34 @@
+rules_version = '2';
+
+// Firebase Storage Security Rules
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Allow users to upload files to their own directory
+    match /uploads/{userId}/{allPaths=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Allow authenticated users to read and write their profile pictures
+    match /uploads/{userId}/profile_photos/{fileName} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Allow authenticated users to upload general files
+    match /uploads/{userId}/{fileName} {
+      allow read, write: if request.auth != null && 
+                         request.auth.uid == userId &&
+                         resource.size < 10 * 1024 * 1024; // Max 10MB
+    }
+    
+    // Public read access for certain files (like profile pictures)
+    match /uploads/{userId}/profile_photos/{fileName} {
+      allow read: if true; // Anyone can read profile photos
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Fallback rule for any authenticated user (more permissive for development)
+    match /{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+} 

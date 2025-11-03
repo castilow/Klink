@@ -1,0 +1,65 @@
+platform :ios, '13.0'
+
+ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+
+project 'Runner', {
+  'Debug' => :debug,
+  'Profile' => :release,
+  'Release' => :release,
+}
+
+def flutter_root
+  generated = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
+  unless File.exist?(generated)
+    raise "#{generated} must exist. Run flutter pub get"
+  end
+  File.foreach(generated) do |l|
+    return l.match(/FLUTTER_ROOT\=(.*)/)[1].strip if l =~ /FLUTTER_ROOT\=/
+  end
+  raise "FLUTTER_ROOT not found in Generated.xcconfig"
+end
+
+require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
+flutter_ios_podfile_setup
+
+target 'Runner' do
+  use_frameworks!
+  use_modular_headers!
+
+  # Firebase se instalará automáticamente a través de flutter_install_all_ios_pods
+
+  flutter_install_all_ios_pods(File.dirname(File.realpath(__FILE__)))
+
+  target 'RunnerTests' do
+    inherit! :search_paths
+  end
+end
+
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    flutter_additional_ios_build_settings(target)
+    target.build_configurations.each do |config|
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+      config.build_settings['ONLY_ACTIVE_ARCH'] = 'YES'
+      config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'i386'
+      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
+      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] += [
+        'PERMISSION_CAMERA=1',
+        'PERMISSION_MICROPHONE=1',
+        'PERMISSION_PHOTOS=1',
+        'PERMISSION_LOCATION=1'
+      ]
+      
+      # Configuraciones para Google Sign In y otros
+      config.build_settings['SWIFT_VERSION'] = '5.0'
+      config.build_settings['ENABLE_BITCODE'] = 'NO'
+      config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+      config.build_settings['BUILD_LIBRARY_FOR_DISTRIBUTION'] = 'YES'
+      
+      # Asegurarse de que todas las dependencias usen la misma versión de Swift
+      if config.build_settings['SWIFT_VERSION'] == nil
+        config.build_settings['SWIFT_VERSION'] = '5.0'
+      end
+    end
+  end
+end

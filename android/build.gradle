@@ -1,0 +1,60 @@
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+
+    // Exclude Agora FOREGROUND_SERVICE_MEDIA_PROJECTION permission  
+    configurations.all {
+      exclude group:"io.agora.rtc", module:"full-screen-sharing"
+    }
+}
+
+rootProject.buildDir = '../build'
+
+// Temporary workaround to make "flutter build apk" --release works.
+// Ensure subprojects use the correct SDK version
+subprojects {
+    afterEvaluate { project ->
+        // Deshabilitar el subproyecto web en Android para evitar compilar un plugin web
+        if (project.name == 'assets_audio_player_web') {
+            project.tasks.configureEach { task ->
+                if (task.name.startsWith('compile') || task.name.startsWith('assemble') || task.name.startsWith('bundle')) {
+                    task.enabled = false
+                }
+            }
+        }
+
+        if (project.plugins.hasPlugin("com.android.application") 
+        || project.plugins.hasPlugin("com.android.library")) {
+            project.android {
+                compileSdkVersion 35
+                buildToolsVersion "35.0.0"
+                compileOptions {
+                    sourceCompatibility JavaVersion.VERSION_17
+                    targetCompatibility JavaVersion.VERSION_17
+                }
+            }
+        }
+
+        // Forzar jvmTarget consistente en todos los módulos Kotlin
+        if (project.plugins.hasPlugin("org.jetbrains.kotlin.android") || project.plugins.hasPlugin("kotlin-android")) {
+            project.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach { task ->
+                task.kotlinOptions {
+                    jvmTarget = '17'
+                }
+            }
+        }
+    }
+}
+
+subprojects {
+    project.buildDir = "${rootProject.buildDir}/${project.name}"
+}
+subprojects {
+    project.evaluationDependsOn(':app')
+}
+
+tasks.register("clean", Delete) {
+    delete rootProject.buildDir
+}

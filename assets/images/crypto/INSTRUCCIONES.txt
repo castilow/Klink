@@ -1,0 +1,6 @@
+# Placeholder para logos PNG
+Por favor descarga los logos oficiales de criptomonedas y colócalos aquí con los nombres:
+- bitcoin.png
+- ethereum.png
+- binance.png
+- cardano.png

@@ -1,0 +1,21 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+<circle cx="32" cy="32" r="32" fill="#F3BA2F"/>
+<!-- Logo BNB correcto - patrón de rombos conectados -->
+<g fill="white">
+  <!-- Rombo central -->
+  <path d="M32 26L38 32L32 38L26 32L32 26Z"/>
+  <!-- Rombo izquierdo -->
+  <path d="M18 32L22 28L18 24L14 28L18 32Z"/>
+  <!-- Rombo derecho -->
+  <path d="M46 32L50 28L46 24L42 28L46 32Z"/>
+  <!-- Rombo superior -->
+  <path d="M32 14L36 18L32 22L28 18L32 14Z"/>
+  <!-- Rombo inferior -->
+  <path d="M32 42L36 46L32 50L28 46L32 42Z"/>
+  <!-- Conectores -->
+  <rect x="30" y="18" width="4" height="8"/>
+  <rect x="30" y="38" width="4" height="8"/>
+  <rect x="18" y="30" width="8" height="4"/>
+  <rect x="38" y="30" width="8" height="4"/>
+</g>
+</svg> 

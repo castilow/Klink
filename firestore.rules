@@ -1,0 +1,61 @@
+rules_version = '2';
+
+// Firestore Database Security Rules
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Users collection - users can read/write their own data
+    match /Users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      // User's chats - allow access to chat participants
+      match /Chats/{chatId} {
+        allow read, write: if request.auth != null && 
+          (request.auth.uid == userId || 
+           request.auth.uid == resource.data.participantIds[0] ||
+           request.auth.uid == resource.data.participantIds[1]);
+        
+        // Messages in chats - allow access to chat participants
+        match /Messages/{messageId} {
+          allow read, write: if request.auth != null && 
+            (request.auth.uid == userId || 
+             request.auth.uid == get(/databases/$(database)/documents/Users/$(userId)/Chats/$(chatId)).data.participantIds[0] ||
+             request.auth.uid == get(/databases/$(database)/documents/Users/$(userId)/Chats/$(chatId)).data.participantIds[1]);
+        }
+      }
+      
+      // Blocked users - users can manage their own blocked list
+      match /BlockedUsers/{blockedUserId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+    
+    // Groups collection - allow authenticated users to read/write groups they're part of
+    match /Groups/{groupId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid in resource.data.members;
+      
+      // Group messages - allow group members to read/write
+      match /Messages/{messageId} {
+        allow read, write: if request.auth != null && 
+          request.auth.uid in get(/databases/$(database)/documents/Groups/$(groupId)).data.members;
+      }
+    }
+    
+    // Reports collection - allow authenticated users to create reports
+    match /Reports/{reportId} {
+      allow create: if request.auth != null;
+      allow read: if false; // Only admins should read reports
+    }
+    
+    // Public read access for user profiles (for contact search)
+    match /Users/{userId} {
+      allow read: if request.auth != null;
+    }
+    
+    // Allow users to read other users' basic info for contacts
+    match /Users/{userId} {
+      allow read: if request.auth != null;
+    }
+  }
+} 
