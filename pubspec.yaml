@@ -1,5 +1,5 @@
 name: chat_messenger
-description: Arious
+description: Klink
 publish_to: "none"     # No se publicará en pub.dev
 version: 1.1.0+2
 
@@ -56,6 +56,7 @@ dependencies:
   image_cropper:        ^9.1.0
   video_player:         ^2.9.5
   video_editor:         ^3.0.0
+  video_thumbnail:      ^0.5.3
   chewie:               ^1.11.3
   giphy_get:            ^3.6.1            # trae intl 0.20.2 vía localizations
   # assets_audio_player:  ^3.1.1  # Eliminado por problemas de compilación en Android (no se usa)

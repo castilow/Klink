@@ -33,7 +33,7 @@ class WoopPriceHistoryService {
   // Headers comunes para las APIs
   static final Map<String, String> _headers = {
     'Accept': 'application/json',
-            'User-Agent': 'Arious/1.0',
+    'User-Agent': 'Klink/1.0',
   };
 
   /// Obtiene el historial de precios según el rango de tiempo seleccionado

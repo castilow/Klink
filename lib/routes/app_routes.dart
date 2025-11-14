@@ -15,11 +15,6 @@ abstract class AppRoutes {
   static const String woopDashboard = '/woop-dashboard';
   static const String ethDashboard = '/eth-dashboard';
   static const String dashboard = '/dashboard';
-  static const String cards = '/cards';
-  static const String selectCard = '/select-card';
-  static const String cardSelectionWebView = '/card-selection-webview';
-  static const String cardList = '/card-list';
-  static const String addCard = '/add-card';
   static const String investment = '/investment';
   static const String sendEth = '/send-eth';
   static const String receiveEth = '/receive-eth';

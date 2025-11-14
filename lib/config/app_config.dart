@@ -4,23 +4,23 @@ abstract class AppConfig {
   ///
 
   /// App Name
-  static const String appName = "Arious";
+  static const String appName = "Klink";
 
   /// Email for Support
-  static const String appEmail = "info@arious.com";
+  static const String appEmail = "info@klink.com";
 
   /// App Version
   static const String appVersion = "Android v1.0.0 - iOS v1.0.0";
 
   // App identifiers
-  static const String iOsAppId = "com.arious.chat";
-  static const String androidPackageName = "com.arious.chat";
+  static const String iOsAppId = "com.klinks.app";
+  static const String androidPackageName = "com.klinks.app";
 
   /// Privacy Policy Link
-  static const String privacyPolicyUrl = "https://arious.com/privacy-policy/";
+  static const String privacyPolicyUrl = "https://klink.com/privacy-policy/";
 
   /// Terms of Service Link
-  static const String termsOfServiceUrl = "https://arious.com/terms-of-service/";
+  static const String termsOfServiceUrl = "https://klink.com/terms-of-service/";
 
   ///
   /// <-- Video & Voice Call Configuration (ZEGOCLOUD) -->

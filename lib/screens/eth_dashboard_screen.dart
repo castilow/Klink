@@ -23,7 +23,7 @@ class _EthDashboardScreenState extends State<EthDashboardScreen> {
   late final AirousWalletController _airousWalletController;
   final EthPriceService _ethPriceService = EthPriceService();
 
-  double _currentPrice = 0.0001; // Valor inicial por defecto para Arious
+  double _currentPrice = 0.0001; // Valor inicial por defecto para Klink
   double _priceChange = 0.0;
   String _priceSource = 'CoinGecko';
   double _priceChangePercent = 0.0;
@@ -52,7 +52,7 @@ class _EthDashboardScreenState extends State<EthDashboardScreen> {
         await _airousWalletController.forceRefresh();
         print('✅ Datos de wallet actualizados');
       } catch (e) {
-        print('❌ Error al cargar balance de Arious: $e');
+        print('❌ Error al cargar balance de Klink: $e');
         // Notificaciones deshabilitadas
       }
     } else {
@@ -61,7 +61,7 @@ class _EthDashboardScreenState extends State<EthDashboardScreen> {
     }
   }
 
-  /// Carga el precio actual de Arious desde CoinGecko
+  /// Carga el precio actual de Klink desde CoinGecko
   Future<void> _loadAirousPrice() async {
     setState(() {
       _isLoadingPrice = true;
@@ -81,7 +81,7 @@ class _EthDashboardScreenState extends State<EthDashboardScreen> {
             Uri.parse(url),
             headers: {
               'Accept': 'application/json',
-              'User-Agent': 'Arious-App/1.0.0',
+              'User-Agent': 'Klink-App/1.0.0',
             },
           )
           .timeout(const Duration(seconds: 10));
@@ -97,7 +97,7 @@ class _EthDashboardScreenState extends State<EthDashboardScreen> {
                 contractData['usd_24h_change']?.toDouble() ?? 0.0;
             _priceSource = 'CoinGecko';
           });
-          print('✅ Precio Arious obtenido de CoinGecko: \$${_currentPrice}');
+          print('✅ Precio Klink obtenido de CoinGecko: \$${_currentPrice}');
         } else {
           throw Exception('No se encontraron datos para el contrato');
         }
@@ -126,7 +126,7 @@ class _EthDashboardScreenState extends State<EthDashboardScreen> {
       return;
     }
 
-    // Navegar a la pantalla de enviar Arious
+    // Navegar a la pantalla de enviar Klink
     Get.toNamed(AppRoutes.sendEth);
   }
 
@@ -136,7 +136,7 @@ class _EthDashboardScreenState extends State<EthDashboardScreen> {
       return;
     }
 
-    // Navegar a la pantalla de recibir Arious
+    // Navegar a la pantalla de recibir Klink
     Get.toNamed(AppRoutes.receiveEth);
   }
 
@@ -712,7 +712,7 @@ class _EthDashboardScreenState extends State<EthDashboardScreen> {
 
         // Descripción
         const Text(
-          'Conecta tu wallet para ver tu balance\nde tokens Arious (WOOP) en BSC',
+          'Conecta tu wallet para ver tu balance\nde tokens Klink (WOOP) en BSC',
           textAlign: TextAlign.center,
           style: TextStyle(color: Colors.white70, fontSize: 16, height: 1.5),
         ),
@@ -793,7 +793,7 @@ class _EthDashboardScreenState extends State<EthDashboardScreen> {
               const SizedBox(height: 16),
               _buildInfoRow('Red:', 'Binance Smart Chain'),
               const SizedBox(height: 12),
-              _buildInfoRow('Token:', 'Arious (WOOP)'),
+              _buildInfoRow('Token:', 'Klink (WOOP)'),
               const SizedBox(height: 12),
               _buildInfoRow('Contrato:', '0xD68...965D'),
               const SizedBox(height: 12),
@@ -872,7 +872,7 @@ class _EthDashboardScreenState extends State<EthDashboardScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                'Balance Arious',
+                'Balance Klink',
                 style: TextStyle(
                   color: Colors.white70,
                   fontSize: 16,
@@ -1221,7 +1221,7 @@ class _EthDashboardScreenState extends State<EthDashboardScreen> {
             ),
           ),
           const SizedBox(height: 16),
-                        _buildInfoRow('Nombre:', 'Arious'),
+                        _buildInfoRow('Nombre:', 'Klink'),
           const SizedBox(height: 12),
           _buildInfoRow('Símbolo:', 'WOOP'),
           const SizedBox(height: 12),

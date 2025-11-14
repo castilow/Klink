@@ -99,7 +99,7 @@ class TokenPrice extends ChangeNotifier {
             ),
             headers: {
               'Accept': 'application/json',
-              'User-Agent': 'Arious/1.0.0',
+              'User-Agent': 'Klink/1.0.0',
             },
           )
           .timeout(const Duration(seconds: 10));

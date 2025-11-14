@@ -6,11 +6,11 @@ import 'package:get/get.dart';
 
 class CallTypeMessage extends StatelessWidget {
   const CallTypeMessage(
-    this.type, {
+    this.status, {
     super.key,
   });
 
-  final CallType type;
+  final CallStatus status;
 
   @override
   Widget build(BuildContext context) {
@@ -18,8 +18,8 @@ class CallTypeMessage extends StatelessWidget {
     Widget title = const SizedBox.shrink();
     TextStyle? style = Theme.of(context).textTheme.bodyMedium;
 
-    switch (type) {
-      case CallType.incoming:
+    switch (status) {
+      case CallStatus.incoming:
         icon = const Icon(
           IconlyBold.arrowDownSquare,
           color: primaryColor,
@@ -27,7 +27,7 @@ class CallTypeMessage extends StatelessWidget {
         );
         title = Text('incoming'.tr, style: style);
         break;
-      case CallType.outgoing:
+      case CallStatus.outgoing:
         icon = const Icon(
           IconlyBold.arrowUpSquare,
           color: Color(0xFF4ADE80),
@@ -35,7 +35,7 @@ class CallTypeMessage extends StatelessWidget {
         );
         title = Text('outgoing'.tr, style: style);
         break;
-      case CallType.missed:
+      case CallStatus.missed:
         icon = const Icon(
           IconlyBold.closeSquare,
           color: errorColor,

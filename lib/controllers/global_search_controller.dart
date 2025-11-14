@@ -63,16 +63,6 @@ class GlobalSearchController extends GetxController {
       description: 'Panel para gestionar tokens WOOP',
     ),
     SearchItem(
-      id: 'cards',
-      title: 'Tarjetas',
-      subtitle: 'Gestiona tus tarjetas',
-      route: AppRoutes.cards,
-      category: 'Finanzas',
-      searchTerms: ['tarjetas', 'cards', 'visa', 'mastercard', 'pago'],
-      iconData: 'cards',
-      description: 'Administra tus tarjetas de pago',
-    ),
-    SearchItem(
       id: 'price',
       title: 'Precios',
       subtitle: 'Ver precios de criptomonedas',

@@ -73,7 +73,7 @@ class VideoMessage extends StatelessWidget {
                 Obx(() {
                   if (controller.isFileUploading(message.fileUrl)) {
                     return Container(
-                      color: Colors.black.withOpacity(0.3),
+                      color: const Color(0x4D000000),
                       child: Center(
                         child: GestureDetector(
                           onTap: () => controller.cancelUpload(message.fileUrl),
@@ -81,7 +81,7 @@ class VideoMessage extends StatelessWidget {
                             width: 40, // Más pequeño y compacto
                             height: 40,
                             decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.7),
+                              color: const Color(0xB3000000),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Stack(
@@ -119,7 +119,7 @@ class VideoMessage extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.6),
+                      color: const Color(0x99000000),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: ReadTimeStatus(
@@ -138,23 +138,38 @@ class VideoMessage extends StatelessWidget {
   }
 
   Widget _buildVideoPreview() {
-    // Si el fileUrl es un path local (empieza con /), mostrar thumbnail del archivo local
-    if (message.fileUrl.startsWith('/')) {
-      return Container(
-        color: Colors.grey[800],
-        child: const Center(
-          child: Icon(
-            Icons.videocam,
-            size: 50,
-            color: Colors.white,
-          ),
-        ),
-      );
-    } else {
-      // Es una URL remota, usar el thumbnail
-      return CachedCardImage(
-        message.videoThumbnail.isNotEmpty ? message.videoThumbnail : message.fileUrl,
-      );
+    if (message.videoThumbnail.isNotEmpty) {
+      // Si el thumbnail es local, mostrarlo directamente
+      if (_isLocalPath(message.videoThumbnail)) {
+        return Image.file(
+          File(message.videoThumbnail),
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => _videoPlaceholder(),
+        );
+      }
+
+      // Thumbnail remoto en cache
+      return CachedCardImage(message.videoThumbnail);
     }
+
+    // Sin thumbnail disponible, usar placeholder
+    return _videoPlaceholder();
+  }
+
+  Widget _videoPlaceholder() {
+    return Container(
+      color: Colors.grey[800],
+      child: const Center(
+        child: Icon(
+          Icons.videocam,
+          size: 50,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
+
+  bool _isLocalPath(String path) {
+    return path.startsWith('/') || path.startsWith('file://');
   }
 }

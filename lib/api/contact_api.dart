@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:chat_messenger/controllers/auth_controller.dart';
+import 'package:chat_messenger/helpers/app_helper.dart';
 import 'package:chat_messenger/helpers/dialog_helper.dart';
 import 'package:chat_messenger/models/user.dart';
 import 'package:get/get.dart';
@@ -52,14 +53,51 @@ abstract class ContactApi {
 
   static Future<User?> searchContact(String username) async {
     try {
+      // Normalizar: quitar @ opcional, minúsculas y sin espacios
+      final String normalizedUsername = AppHelper.sanitizeUsername(
+        username.trim().startsWith('@')
+            ? username.trim().substring(1)
+            : username.trim(),
+      );
+
+      if (normalizedUsername.isEmpty) {
+        DialogHelper.showSnackbarMessage(
+          SnackMsgType.error,
+          "enter_username".tr,
+        );
+        return null;
+      }
+
       final query = await _firestore
           .collection('Users')
-          .where('username', isEqualTo: username)
+          .where('username', isEqualTo: normalizedUsername)
           .limit(1)
           .get();
       if (query.docs.isNotEmpty) {
         return User.fromMap(query.docs.first.data());
       }
+
+      // Fallback: recorrer usuarios locales para coincidencias flexibles
+      final fallbackUsers = await UserApi.getAllUsers();
+      final String rawLower = username.trim().toLowerCase();
+      User? manualMatch;
+      for (final user in fallbackUsers) {
+        final unameLower = user.username.toLowerCase();
+        final fullnameLower = user.fullname.toLowerCase();
+        final emailLower = user.email.toLowerCase();
+        final bool matchesUsername =
+            unameLower == normalizedUsername || unameLower == rawLower;
+        final bool matchesFullName =
+            fullnameLower.contains(rawLower) && rawLower.isNotEmpty;
+        final bool matchesEmail = emailLower == rawLower && rawLower.isNotEmpty;
+        if (matchesUsername || matchesFullName || matchesEmail) {
+          manualMatch = user;
+          break;
+        }
+      }
+
+      if (manualMatch != null) return manualMatch;
+
       return null;
     } catch (e) {
       DialogHelper.showSnackbarMessage(SnackMsgType.error, e.toString());

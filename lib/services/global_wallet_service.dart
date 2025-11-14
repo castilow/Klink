@@ -27,7 +27,7 @@ class GlobalWalletService extends GetxService {
     try {
       print('🚀 Inicializando Global Wallet Service...');
 
-          // Crear el controlador Arious como singleton global
+      // Crear el controlador Klink como singleton global
     if (!Get.isRegistered<AirousWalletController>()) {
       airousController = Get.put(AirousWalletController(), permanent: true);
       await airousController.initializeService();
@@ -47,7 +47,7 @@ class GlobalWalletService extends GetxService {
     }
   }
 
-  /// Obtiene el controlador Arious global
+  /// Obtiene el controlador Klink global
   AirousWalletController get airousWallet {
     if (!_initialized) {
       throw Exception(

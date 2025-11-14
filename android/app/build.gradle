@@ -32,7 +32,7 @@ if (flutterVersionName == null) {
 // }
 
 android {
-    namespace "com.company.chat_messenger"
+    namespace "com.klinks.app"
     compileSdkVersion 35
     ndkVersion "27.0.12077973"
 
@@ -53,7 +53,7 @@ android {
 
     defaultConfig {
         // Application ID alineado con Firebase
-        applicationId "com.company.chat_messenger"
+        applicationId "com.klinks.app"
         minSdkVersion 24
         targetSdkVersion 35
         multiDexEnabled true

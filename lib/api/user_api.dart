@@ -33,7 +33,7 @@ abstract class UserApi {
   static void configureRealtimeDatabase() {
     _realtime.setLoggingEnabled(false);
     _realtime.setPersistenceEnabled(true);
-    _realtime.databaseURL = 'https://woonkly-38aed-default-rtdb.firebaseio.com';
+    _realtime.databaseURL = 'https://klink-b0358-default-rtdb.firebaseio.com';
   }
 
   static Future<dynamic> createAccount({

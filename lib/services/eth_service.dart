@@ -14,7 +14,7 @@ class AirousService {
     'https://bsc-dataseed2.defibit.io/',
   ];
 
-  // Arious token contract address on BSC (dirección correcta confirmada)
+  // Klink token contract address on BSC (dirección correcta confirmada)
   static const String _airousTokenAddress =
       '0xD686E8DFECFd976D80E5641489b7A18Ac16d965D';
 
@@ -73,12 +73,12 @@ class AirousService {
     _client = Web3Client(_rpcUrl, Client());
     _initializeContract();
     if (kDebugMode) {
-          print('✅ AirousService inicializado con BSC RPC: $_rpcUrl');
-    print('📄 Arious Token Address: $_airousTokenAddress');
+      print('✅ AirousService inicializado con BSC RPC: $_rpcUrl');
+      print('📄 Klink Token Address: $_airousTokenAddress');
     }
   }
 
-  /// Inicializa el contrato BEP-20 de Arious
+  /// Inicializa el contrato BEP-20 de Klink
   void _initializeContract() {
     final contract = ContractAbi.fromJson(_bep20Abi, 'AirousToken');
     _airousContract = DeployedContract(
@@ -123,11 +123,11 @@ class AirousService {
     }
   }
 
-  /// Obtiene el balance de tokens Arious de una dirección
+  /// Obtiene el balance de tokens Klink de una dirección
   Future<double> getAirousBalance(String address) async {
     try {
       if (kDebugMode) {
-        print('🔍 Consultando balance Arious para dirección: $address');
+        print('🔍 Consultando balance Klink para dirección: $address');
       }
 
       // Validar que la dirección sea válida
@@ -138,13 +138,13 @@ class AirousService {
       final balance = await _getAirousBalanceWithRetry(address);
 
       if (kDebugMode) {
-                  print('✅ Arious Balance obtenido: $balance WOOP');
+        print('✅ Klink Balance obtenido: $balance WOOP');
       }
 
       return balance;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Error getting Arious balance: $e');
+        print('❌ Error getting Klink balance: $e');
       }
       rethrow;
     }
@@ -196,7 +196,7 @@ class AirousService {
     throw lastException ?? Exception('Todos los RPCs fallaron');
   }
 
-  /// Obtiene el balance de Arious tokens con retry logic
+  /// Obtiene el balance de Klink tokens con retry logic
   Future<double> _getAirousBalanceWithRetry(String address) async {
     Exception? lastException;
 
@@ -215,7 +215,7 @@ class AirousService {
       lastException = Exception('RPC principal falló: $e');
       if (kDebugMode) {
         print(
-          '⚠️ RPC principal falló para Arious balance, intentando con backup RPCs...',
+          '⚠️ RPC principal falló para Klink balance, intentando con backup RPCs...',
         );
       }
     }
@@ -224,7 +224,7 @@ class AirousService {
     for (int i = 0; i < _backupRpcUrls.length; i++) {
       try {
         if (kDebugMode) {
-          print('🔄 Intentando RPC backup para Arious: ${_backupRpcUrls[i]}');
+          print('🔄 Intentando RPC backup para Klink: ${_backupRpcUrls[i]}');
         }
 
         final backupClient = Web3Client(_backupRpcUrls[i], Client());
@@ -244,7 +244,7 @@ class AirousService {
                     final balanceFormatted = _safeWeiToAirous(balance);
 
         if (kDebugMode) {
-          print('✅ Balance Arious obtenido exitosamente con RPC backup');
+          print('✅ Balance Klink obtenido exitosamente con RPC backup');
         }
 
         backupClient.dispose();
@@ -258,10 +258,10 @@ class AirousService {
     }
 
     throw lastException ??
-        Exception('Todos los RPCs fallaron para Arious balance');
+        Exception('Todos los RPCs fallaron para Klink balance');
   }
 
-  /// Convierte Wei a Arious de forma segura manejando números grandes
+  /// Convierte Wei a Klink de forma segura manejando números grandes
   double _safeWeiToAirous(BigInt wei) {
     try {
       // Dividir como BigInt primero para evitar overflow en la conversión a double
@@ -309,24 +309,24 @@ class AirousService {
     return BigInt.from((bnb * BigInt.from(10).pow(18).toDouble()).toInt());
   }
 
-  /// Convierte Arious tokens a su representación en Wei (18 decimales)
+  /// Convierte Klink tokens a su representación en Wei (18 decimales)
   BigInt airousToWei(double airous) {
     return BigInt.from((airous * BigInt.from(10).pow(18).toDouble()).toInt());
   }
 
-  /// Convierte Wei a Arious tokens
+  /// Convierte Wei a Klink tokens
   double weiToAirous(BigInt wei) {
     return _safeWeiToAirous(wei);
   }
 
-  /// Construye los datos para una transferencia de tokens Arious
+  /// Construye los datos para una transferencia de tokens Klink
   Map<String, String> buildAirousTransferTransaction({
     required String from,
     required String to,
     required double amount,
   }) {
     if (kDebugMode) {
-      print('🔧 Construyendo transacción Arious:');
+      print('🔧 Construyendo transacción Klink:');
       print('   From: $from');
       print('   To: $to');
       print('   Amount: $amount WOOP');
@@ -370,13 +370,13 @@ class AirousService {
       );
 
       if (kDebugMode) {
-        print('✅ Gas estimate para transferencia Arious: $gasEstimate');
+        print('✅ Gas estimate para transferencia Klink: $gasEstimate');
       }
 
       return gasEstimate;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Error estimating gas for Arious transfer: $e');
+        print('❌ Error estimating gas for Klink transfer: $e');
       }
       // Retornar gas por defecto para transferencias BEP-20
       return BigInt.from(100000);
@@ -404,7 +404,7 @@ class AirousService {
     }
   }
 
-  /// Obtiene información del token Arious (nombre, símbolo, decimales)
+  /// Obtiene información del token Klink (nombre, símbolo, decimales)
   Future<Map<String, dynamic>> getTokenInfo() async {
     try {
       // Get token name
@@ -440,7 +440,7 @@ class AirousService {
       }
       // Return default values if call fails
       return {
-        'name': 'Arious',
+        'name': 'Klink',
         'symbol': 'WOOP',
         'decimals': 18,
         'address': _airousTokenAddress,

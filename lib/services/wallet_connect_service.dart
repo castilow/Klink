@@ -21,10 +21,10 @@ class WalletConnectService {
     _connector = WalletConnect(
       bridge: 'https://bridge.walletconnect.org',
       clientMeta: PeerMeta(
-              name: 'Arious App',
-      description: 'Arious Mobile App',
-      url: 'https://arious.com',
-      icons: ['https://arious.com/icon.png'],
+        name: 'Klink App',
+        description: 'Klink Mobile App',
+        url: 'https://klink.com',
+        icons: ['https://klink.com/icon.png'],
       ),
     );
 

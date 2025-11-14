@@ -27,14 +27,23 @@ class CachedCardImage extends StatelessWidget {
       return CachedNetworkImage(
         fit: BoxFit.cover,
         imageUrl: imageUrl,
-        placeholder: (context, url) => Center(
-          child: placeholder,
+        placeholder: (context, url) => Container(
+          color: Colors.grey[300],
+          child: const Center(
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.grey),
+            ),
+          ),
         ),
-        errorWidget: (context, url, error) => Center(
-          child: Icon(
-            IconlyLight.dangerCircle,
-            color: errorIconColor,
-            size: 50,
+        errorWidget: (context, url, error) => Container(
+          color: Colors.grey[300],
+          child: Center(
+            child: Icon(
+              IconlyLight.dangerCircle,
+              color: errorIconColor,
+              size: 50,
+            ),
           ),
         ),
       );

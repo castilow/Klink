@@ -288,40 +288,9 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                   ),
                   
-                  // Cards button y Plus button (ocultos cuando búsqueda está activa)
+                  // Plus button (oculto cuando búsqueda está activa)
                   if (!_isSearchActive) ...[
                     const SizedBox(width: 12),
-                    
-                    // Cards button
-                    GestureDetector(
-                      onTap: () {
-                        HapticFeedback.lightImpact();
-                        Get.toNamed(AppRoutes.cardList);
-                      },
-                      child: Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: isDarkMode
-                              ? const Color(0xFF1C1C1E)
-                              : const Color(0xFFF2F2F7),
-                          borderRadius: BorderRadius.circular(12),
-                          border: isDarkMode
-                              ? Border.all(
-                                  color: const Color(0xFF404040).withOpacity(0.6),
-                                  width: 1,
-                                )
-                              : null,
-                        ),
-                        child: Icon(
-                          Icons.credit_card,
-                          color: isDarkMode
-                              ? const Color(0xFF9CA3AF)
-                              : const Color(0xFF64748B),
-                          size: 18,
-                        ),
-                      ),
-                    ),
                     
                     // Plus button (solo en página de chats - pageIndex == 0)
                     if (pageIndex == 0) ...[
@@ -501,10 +470,6 @@ class _HomeScreenState extends State<HomeScreen>
                   onTap: (int index) {
                     HapticFeedback.selectionClick();
                     homeController.pageIndex.value = index;
-                    // View stories
-                    if (index == 2) {
-                      storyController.viewStories();
-                    }
                   },
                   type: BottomNavigationBarType.fixed,
                   selectedLabelStyle: const TextStyle(
@@ -515,7 +480,7 @@ class _HomeScreenState extends State<HomeScreen>
                     fontWeight: FontWeight.w500,
                     fontSize: 11,
                   ),
-                  selectedItemColor: isDarkMode ? Colors.white : Colors.black,
+                  selectedItemColor: const Color(0xFF00F7FF), // Cyan brillante
                   unselectedItemColor: isDarkMode
                       ? const Color(0xFF9CA3AF)
                       : const Color(0xFF64748B),
@@ -528,30 +493,25 @@ class _HomeScreenState extends State<HomeScreen>
                         isNew: chatController.newMessage,
                       ),
                     ),
-                    // Dashboard
+                    // Contacts
                     BottomNavigationBarItem(
-                      label: 'Dashboard'.tr,
+                      label: 'contacts'.tr,
                       icon: Icon(
-                        pageIndex == 1 ? IconlyBold.chart : IconlyLight.chart,
+                        pageIndex == 1 ? IconlyBold.user2 : IconlyLight.user2,
                       ),
                     ),
-                    // Stories - SIN TEXTO Y MÁS GRANDE
+                    // Calls
                     BottomNavigationBarItem(
-                      label: '', // Sin texto
-                      icon: _buildSiriOrb(storyController.hasUnviewedStories),
-                    ),
-                    // Investment
-                    BottomNavigationBarItem(
-                      label: 'Invertir'.tr,
+                      label: 'calls'.tr,
                       icon: Icon(
-                        pageIndex == 3 ? IconlyBold.swap : IconlyLight.swap,
+                        pageIndex == 2 ? IconlyBold.call : IconlyLight.call,
                       ),
                     ),
-                    // Cards
+                    // Settings
                     BottomNavigationBarItem(
-                      label: 'Tarjetas'.tr,
+                      label: 'settings'.tr,
                       icon: Icon(
-                        pageIndex == 4 ? IconlyBold.wallet : IconlyLight.wallet,
+                        pageIndex == 3 ? IconlyBold.setting : IconlyLight.setting,
                       ),
                     ),
                   ],
@@ -824,20 +784,6 @@ class _HomeScreenState extends State<HomeScreen>
                         width: 1,
                         color: isDarkMode ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
                       ),
-                      Expanded(
-                        child: _buildRevolutGridItem(
-                          icon: Icons.account_balance_wallet,
-                          iconColor: const Color(0xFF5AC8FA),
-                          title: 'Cajeros\nautomáticos',
-                          isDarkMode: isDarkMode,
-                          onTap: () {
-                            Navigator.of(Get.context!).pop();
-                            Future.delayed(const Duration(milliseconds: 100), () {
-                              Get.toNamed(AppRoutes.cards);
-                            });
-                          },
-                        ),
-                      ),
                     ],
                   ),
                 ),
@@ -928,23 +874,6 @@ class _HomeScreenState extends State<HomeScreen>
                     Navigator.of(Get.context!).pop();
                     Future.delayed(const Duration(milliseconds: 100), () {
                       Get.toNamed(AppRoutes.wallet);
-                    });
-                  },
-                ),
-                Divider(
-                  height: 1,
-                  color: isDarkMode ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
-                ),
-                _buildRevolutListItem(
-                  icon: Icons.credit_card,
-                  iconColor: const Color(0xFFEF4444),
-                  title: 'Tarjetas'.tr,
-                  subtitle: 'Administrar tarjetas'.tr,
-                  isDarkMode: isDarkMode,
-                  onTap: () {
-                    Navigator.of(Get.context!).pop();
-                    Future.delayed(const Duration(milliseconds: 100), () {
-                      Get.toNamed(AppRoutes.cards);
                     });
                   },
                 ),
@@ -1244,8 +1173,6 @@ class _HomeScreenState extends State<HomeScreen>
         return Icons.currency_bitcoin;
       case 'woop':
         return Icons.token;
-      case 'cards':
-        return Icons.credit_card;
       case 'price':
         return Icons.show_chart;
       case 'contacts':
@@ -1271,8 +1198,6 @@ class _HomeScreenState extends State<HomeScreen>
         return const Color(0xFF2A2A2A);
       case 'woop':
         return const Color(0xFFF59E0B);
-      case 'cards':
-        return const Color(0xFFEF4444);
       case 'price':
         return const Color(0xFF06B6D4);
       case 'contacts':
@@ -1457,3 +1382,4 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 }
+

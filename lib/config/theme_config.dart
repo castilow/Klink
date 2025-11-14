@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-// Arious Brand Colors - Elegante Blanco y Negro
+// Klink Brand Colors - Negro y Cyan
 const primaryColor = Color(0xFF000000); // Negro principal
-const secondaryColor = Color(0xFF1A1A1A); // Negro oscuro
+const secondaryColor = Color(0xFF00F7FF); // Cyan brillante
 const primaryLight = Color(0xFFFFFFFF); // Blanco puro
 const primaryDark = Color(0xFF000000); // Negro puro
 

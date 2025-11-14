@@ -53,7 +53,7 @@ class _ReceiveEthScreenState extends State<ReceiveEthScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          'Recibir Arious',
+          'Recibir Klink',
           style: TextStyle(
             color: Colors.white,
             fontSize: 20,
@@ -86,7 +86,7 @@ class _ReceiveEthScreenState extends State<ReceiveEthScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Por favor conecta tu wallet para recibir Arious',
+                    'Por favor conecta tu wallet para recibir Klink',
                     style: TextStyle(
                       color: Colors.white.withOpacity(0.7),
                       fontSize: 14,
@@ -115,7 +115,7 @@ class _ReceiveEthScreenState extends State<ReceiveEthScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Comparte esta dirección para recibir Arious',
+                  'Comparte esta dirección para recibir Klink',
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.7),
                     fontSize: 16,
@@ -384,7 +384,7 @@ class _ReceiveEthScreenState extends State<ReceiveEthScreen> {
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        '• Solo envía Arious y otros tokens BEP-20 a esta dirección\n'
+                        '• Solo envía Klink y otros tokens BEP-20 a esta dirección\n'
                         '• Enviar tokens de otras redes puede resultar en pérdida permanente\n'
                         '• Verifica siempre la dirección antes de enviar fondos\n'
                         '• Esta es una dirección de Binance Smart Chain (BSC)',

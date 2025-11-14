@@ -12,6 +12,10 @@ class AppLogo extends StatelessWidget {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final logoSize = width ?? height ?? (screenWidth * 0.3);
+    
+    // Detectar el tema actual
+    final brightness = Theme.of(context).brightness;
+    final isDarkMode = brightness == Brightness.dark;
 
     return Container(
       width: logoSize,
@@ -20,7 +24,7 @@ class AppLogo extends StatelessWidget {
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: primaryColor.withOpacity(0.3),
+            color: primaryColor.withOpacity(isDarkMode ? 0.2 : 0.1),
             blurRadius: 30,
             spreadRadius: 10,
           ),
@@ -32,6 +36,9 @@ class AppLogo extends StatelessWidget {
           width: logoSize,
           height: logoSize,
           fit: BoxFit.cover,
+          // Si se proporciona un color, lo aplica; si no, usa el original
+          color: color,
+          colorBlendMode: color != null ? BlendMode.srcIn : null,
         ),
       ),
     );

@@ -294,7 +294,7 @@ class AirousWalletController extends GetxController {
 
       return hash;
     } catch (e) {
-              print('❌ Error sending Arious: $e');
+              print('❌ Error sending Klink: $e');
       rethrow;
     } finally {
       isSending.value = false;
@@ -402,7 +402,7 @@ class AirousWalletController extends GetxController {
     }
   }
 
-  /// Obtiene el balance de Arious tokens del usuario conectado
+  /// Obtiene el balance de Klink tokens del usuario conectado
   Future<void> getAirousBalance() async {
     if (account.value == null) {
       print('❌ No hay cuenta conectada, no se puede obtener balance');
@@ -416,7 +416,7 @@ class AirousWalletController extends GetxController {
       // Intento inicial
       await _attemptGetBalance();
     } catch (e) {
-              print('❌ Error getting Arious balance: $e');
+              print('❌ Error getting Klink balance: $e');
 
       // Si el primer intento falla, intentar después de 2 segundos
       print('🔄 Reintentando obtener balance en 2 segundos...');
@@ -448,10 +448,10 @@ class AirousWalletController extends GetxController {
 
   /// Intenta obtener el balance una vez
   Future<void> _attemptGetBalance() async {
-    // Obtener balance de Arious tokens
+    // Obtener balance de Klink tokens
     final newAirousBalance = await airous.getAirousBalance(account.value!);
     woonlyBalance.value = newAirousBalance;
-    print('✅ Arious Balance actualizado: ${woonlyBalance.value} WOOP');
+    print('✅ Klink Balance actualizado: ${woonlyBalance.value} WOOP');
 
     // Obtener balance de BNB para gas fees
     final bnbBalanceWei = await airous.getBnbBalance(account.value!);

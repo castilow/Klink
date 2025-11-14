@@ -12,18 +12,21 @@ class SplashScreen extends StatelessWidget {
     // Init splash controller
     Get.put(SplashController());
 
-    // Splash siempre en modo oscuro
+    // Detectar el tema actual del sistema
+    final brightness = MediaQuery.of(context).platformBrightness;
+    final isDarkMode = brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: darkThemeBgColor,
+      backgroundColor: isDarkMode ? darkThemeBgColor : lightThemeBgColor,
       body: Center(
         child: SizedBox(
           width: 160,
           height: 160,
-          child: const Image(
-            image: AssetImage('assets/images/app_logo.png'),
+          child: Image.asset(
+            'assets/images/app_logo.png',
             fit: BoxFit.contain,
-            color: Colors.white, // Tint blanco para modo oscuro
-            colorBlendMode: BlendMode.srcIn,
+            // Sin color forzado - usa el color original de la imagen
+            // Se adapta automáticamente al tema
           ),
         ),
       ),

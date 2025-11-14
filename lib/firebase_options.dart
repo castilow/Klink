@@ -41,20 +41,20 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyBtZNLoopgw8bw3xR4FKgjFAdyTjwIc0Ys',
-    appId: '1:320969644964:android:e0e61531fe2ce04c363f31',
-    messagingSenderId: '320969644964',
-    projectId: 'arious-4a07f',
-    storageBucket: 'arious-4a07f.firebasestorage.app',
+    apiKey: 'AIzaSyBkK7tDuZU56DIc7mlo7Dv-451Idf51608',
+    appId: '1:1066544431393:android:82bb6bc259c5aadec97e60',
+    messagingSenderId: '1066544431393',
+    projectId: 'klink-b0358',
+    storageBucket: 'klink-b0358.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyCuHQzLPoTmz5y-gAeVM9cAlFfe0jfhCxk',
-    appId: '1:320969644964:ios:3a05ea5086e62db8363f31',
-    messagingSenderId: '320969644964',
-    projectId: 'arious-4a07f',
-    storageBucket: 'arious-4a07f.firebasestorage.app',
-    iosBundleId: 'com.arious.app',
+    apiKey: 'AIzaSyBMDPKKPijW81wPAga8sXolBfVwLsc9W-0',
+    appId: '1:1066544431393:ios:e23758cc583ec8c3c97e60',
+    messagingSenderId: '1066544431393',
+    projectId: 'klink-b0358',
+    storageBucket: 'klink-b0358.firebasestorage.app',
+    iosBundleId: 'com.klinks.app',
   );
 
   static const FirebaseOptions web = FirebaseOptions(
@@ -68,12 +68,12 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyCuHQzLPoTmz5y-gAeVM9cAlFfe0jfhCxk',
-    appId: '1:320969644964:ios:09aadd5b8d130105363f31',
-    messagingSenderId: '320969644964',
-    projectId: 'arious-4a07f',
-    storageBucket: 'arious-4a07f.firebasestorage.app',
-    iosBundleId: 'com.company.chatMessenger',
+    apiKey: 'AIzaSyBMDPKKPijW81wPAga8sXolBfVwLsc9W-0',
+    appId: '1:1066544431393:ios:e23758cc583ec8c3c97e60',
+    messagingSenderId: '1066544431393',
+    projectId: 'klink-b0358',
+    storageBucket: 'klink-b0358.firebasestorage.app',
+    iosBundleId: 'com.klinks.app',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(

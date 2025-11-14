@@ -1,11 +1,11 @@
 {
-      "name": "Arious",
-  "short_name": "Arious",
+      "name": "Klink",
+  "short_name": "Klink",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "Arious - Connect and chat securely with friends and family.",
+    "description": "Klink - Connect and chat securely with friends and family.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

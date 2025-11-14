@@ -6,12 +6,6 @@ import 'package:flutter/animation.dart';
 // Screen Imports
 import 'package:chat_messenger/screens/splash/splash_screen.dart';
 import 'package:chat_messenger/screens/dashboard_screen.dart';
-import 'package:chat_messenger/screens/cards_screen.dart';
-import 'package:chat_messenger/screens/select_card_screen.dart';
-import 'package:chat_messenger/screens/card_selection_webview_screen.dart';
-import 'package:chat_messenger/screens/cards/card_list_screen.dart';
-import 'package:chat_messenger/screens/cards/add_card_screen.dart';
-import 'package:chat_messenger/screens/cards/select_card_screen.dart' as new_select;
 import 'package:chat_messenger/screens/investment_screen.dart';
 import 'package:chat_messenger/screens/auth/signin-or-signup/signin_or_signup_screen.dart';
 import 'package:chat_messenger/screens/auth/signin/signin_screen.dart';
@@ -123,31 +117,6 @@ abstract class AppPages {
     GetPage(
       name: AppRoutes.dashboard,
       page: () => const DashboardScreen(),
-      transition: Transition.rightToLeft,
-    ),
-    GetPage(
-      name: AppRoutes.cards,
-      page: () => const CardsScreen(),
-      transition: Transition.rightToLeft,
-    ),
-    GetPage(
-      name: AppRoutes.selectCard,
-      page: () => const new_select.SelectCardScreen(),
-      transition: Transition.rightToLeft,
-    ),
-    GetPage(
-      name: AppRoutes.cardSelectionWebView,
-      page: () => const CardSelectionWebViewScreen(),
-      transition: Transition.rightToLeft,
-    ),
-    GetPage(
-      name: AppRoutes.cardList,
-      page: () => const CardListScreen(),
-      transition: Transition.rightToLeft,
-    ),
-    GetPage(
-      name: AppRoutes.addCard,
-      page: () => const AddCardScreen(),
       transition: Transition.rightToLeft,
     ),
     GetPage(

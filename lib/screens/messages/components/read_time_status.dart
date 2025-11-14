@@ -14,16 +14,13 @@ class ReadTimeStatus extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Vars
     final bool isDoc = message.type == MessageType.doc;
 
-    return Positioned(
-      right: 0,
-      bottom: isDoc ? 8 : 0,
+    return Padding(
+      padding: EdgeInsets.only(bottom: isDoc ? 8 : 0),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // <-- Sent time -->
           Opacity(
             opacity: 0.7,
             child: Text(
@@ -31,18 +28,24 @@ class ReadTimeStatus extends StatelessWidget {
                   ? message.updatedAt?.formatMsgTime ?? ''
                   : message.sentAt?.formatMsgTime ?? '',
               style: TextStyle(
-                  fontSize: 13, color: message.isSender ? Colors.white : null),
+                fontSize: 13,
+                color: message.isSender ? Colors.white : null,
+              ),
             ),
           ),
           const SizedBox(width: 2),
-          // Read status
           if (message.isSender && !isGroup)
-            Icon(message.isRead ? Icons.done_all : Icons.done,
-                size: 15, color: Colors.white),
-          // For group message
+            Icon(
+              message.isRead ? Icons.done_all : Icons.done,
+              size: 15,
+              color: Colors.white,
+            ),
           if (isGroup)
-            Icon(Icons.done_all,
-                size: 15, color: message.isSender ? Colors.white : null),
+            Icon(
+              Icons.done_all,
+              size: 15,
+              color: message.isSender ? Colors.white : null,
+            ),
         ],
       ),
     );

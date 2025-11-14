@@ -12,6 +12,11 @@ import 'package:chat_messenger/services/firebase_messaging_service.dart';
 import 'package:chat_messenger/api/user_api.dart';
 import 'package:chat_messenger/firebase_options.dart';
 
+const bool kEnableFirebaseAppCheck =
+    bool.fromEnvironment('ENABLE_FIREBASE_APP_CHECK', defaultValue: false);
+const bool kForceDebugAppCheckMode =
+    bool.fromEnvironment('FORCE_DEBUG_APP_CHECK', defaultValue: false);
+
 class SplashController extends GetxController {
   // Auth controller: se instancia SOLO después de Firebase.initializeApp
   late final AuthController auth;
@@ -26,24 +31,34 @@ class SplashController extends GetxController {
     // Inicializa todo y navega sin animaciones
     try {
       // Firebase primero
-      await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+      if (Firebase.apps.isEmpty) {
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
+      } else {
+        Firebase.app();
+      }
 
-      // Inicializar App Check para habilitar llamadas a Functions con enforceAppCheck
-      await FirebaseAppCheck.instance.activate(
-        appleProvider: AppleProvider.debug,
-        androidProvider: AndroidProvider.debug,
-        webProvider: ReCaptchaV3Provider('unused-for-mobile'),
-      );
-      // Auto refresh y log del token para registrar en Firebase Console (App Check > Debug tokens)
-      await FirebaseAppCheck.instance.setTokenAutoRefreshEnabled(true);
-      try {
-        final token = await FirebaseAppCheck.instance.getToken(true);
-        // NOTA: Este no es el "debug token" mostrable por consola de nativo, pero ayuda a confirmar que AppCheck está activo
-        // Si no llegan notificaciones y la Function exige AppCheck, registra el debug token nativo que imprime el SDK en logs
-        // o añade el token manualmente en la consola de Firebase.
-        // Ignorar en producción.
-        debugPrint('🔥 AppCheck token (para verificación): ${token != null ? token.substring(0, 12) : 'null'}...');
-      } catch (_) {}
+      if (kEnableFirebaseAppCheck) {
+        await FirebaseAppCheck.instance.activate(
+          appleProvider:
+              kForceDebugAppCheckMode ? AppleProvider.debug : AppleProvider.appAttestWithDeviceCheckFallback,
+          androidProvider:
+              kForceDebugAppCheckMode ? AndroidProvider.debug : AndroidProvider.playIntegrity,
+          webProvider: ReCaptchaV3Provider('unused-for-mobile'),
+        );
+        await FirebaseAppCheck.instance.setTokenAutoRefreshEnabled(true);
+        if (kForceDebugAppCheckMode) {
+          try {
+            final token = await FirebaseAppCheck.instance.getToken(true);
+            debugPrint(
+              '🔥 AppCheck token (para verificación): ${token != null ? token.substring(0, 12) : 'null'}...',
+            );
+          } catch (e) {
+            debugPrint('⚠️ Error obteniendo AppCheck token: $e');
+          }
+        }
+      }
 
       // Diagnóstico FCM token y permisos
       await FirebaseMessagingService.diagnoseFCMToken();

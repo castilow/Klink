@@ -21,11 +21,37 @@ import 'package:zego_uikit_signaling_plugin/zego_uikit_signaling_plugin.dart';
 // Global navigator key para ZEGOCLOUD
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
+Future<void> _ensureFirebaseInitialized() async {
+  if (Firebase.apps.isNotEmpty) {
+    if (kDebugMode) {
+      final existing = Firebase.app();
+      debugPrint('Firebase ya inicializado (${existing.name})');
+    }
+    return;
+  }
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    if (kDebugMode) {
+      final app = Firebase.app();
+      debugPrint('Firebase inicializado: projectId=${app.options.projectId}');
+    }
+  } on FirebaseException catch (e) {
+    if (e.code == 'duplicate-app') {
+      if (kDebugMode) {
+        debugPrint('Firebase ya estaba inicializado (duplicate-app)');
+      }
+      Firebase.app();
+    } else {
+      rethrow;
+    }
+  }
+}
+
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await _ensureFirebaseInitialized();
   if (kDebugMode) {
     debugPrint('Background message received: ${message.messageId}');
   }
@@ -34,9 +60,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await _ensureFirebaseInitialized();
 
   // App Check DESACTIVADO para producción - más simple y sin problemas
   // await FirebaseAppCheck.instance.activate(

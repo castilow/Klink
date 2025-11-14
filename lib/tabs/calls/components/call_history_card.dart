@@ -51,16 +51,15 @@ class CallHistoryCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Call type message
-                        CallTypeMessage(call.type),
+                        CallTypeMessage(call.callStatus),
                         const Text(' | '),
-                        if (call.ceatedAt != null)
-                          Expanded(
-                            child: Text(
-                              call.ceatedAt!.formatDateTime,
-                              style: Theme.of(context).textTheme.bodyMedium,
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                        Expanded(
+                          child: Text(
+                            call.createdAt.formatDateTime,
+                            style: Theme.of(context).textTheme.bodyMedium,
+                            overflow: TextOverflow.ellipsis,
                           ),
+                        ),
                       ],
                     ),
                   ],
@@ -69,11 +68,11 @@ class CallHistoryCard extends StatelessWidget {
               // Call back button
               IconButton(
                 onPressed: () => CallHelper.makeCall(
-                  isVideo: call.isVideo,
+                  isVideo: call.callType == CallType.video,
                   user: call.receiver,
                 ),
                 icon: Icon(
-                  call.isVideo ? IconlyBold.video : IconlyBold.call,
+                  call.callType == CallType.video ? IconlyBold.video : IconlyBold.call,
                   color: primaryColor,
                 ),
               ),

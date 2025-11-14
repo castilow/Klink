@@ -13,9 +13,7 @@ class CommonHeader extends StatelessWidget {
   final List<Widget>? actions;
   final bool showSearch;
   final bool showProfile;
-  final bool showCards;
   final VoidCallback? onProfileTap;
-  final VoidCallback? onCardsTap;
   
   const CommonHeader({
     Key? key,
@@ -23,9 +21,7 @@ class CommonHeader extends StatelessWidget {
     this.actions,
     this.showSearch = true,
     this.showProfile = true,
-    this.showCards = true,
     this.onProfileTap,
-    this.onCardsTap,
   }) : super(key: key);
 
   @override
@@ -82,40 +78,6 @@ class CommonHeader extends StatelessWidget {
             if (actions != null) ...[
               const SizedBox(width: 12),
               ...actions!,
-            ],
-            
-            // Cards button
-            if (showCards) ...[
-              const SizedBox(width: 12),
-              GestureDetector(
-                onTap: onCardsTap ?? () {
-                  HapticFeedback.lightImpact();
-                  Get.toNamed(AppRoutes.cardList);
-                },
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: isDarkMode
-                        ? const Color(0xFF1C1C1E)
-                        : const Color(0xFFF2F2F7),
-                    borderRadius: BorderRadius.circular(12),
-                    border: isDarkMode
-                        ? Border.all(
-                            color: const Color(0xFF404040).withOpacity(0.6),
-                            width: 1,
-                          )
-                        : null,
-                  ),
-                  child: Icon(
-                    Icons.credit_card,
-                    color: isDarkMode
-                        ? const Color(0xFF9CA3AF)
-                        : const Color(0xFF64748B),
-                    size: 20,
-                  ),
-                ),
-              ),
             ],
           ],
         ),

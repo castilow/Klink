@@ -21,6 +21,7 @@ import 'package:get/get.dart';
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:video_thumbnail/video_thumbnail.dart';
 
 class MessageController extends GetxController {
   final bool isGroup;
@@ -735,8 +736,15 @@ class MessageController extends GetxController {
     Location? location,
   }) async {
     // Vars
-    String? textMsg, fileUrl;
+    String? textMsg, fileUrl, videoThumbnailUrl, localVideoThumbnailPath;
+    File? videoThumbnailFile;
     final String messageId = AppHelper.generateID;
+
+    // Generate video thumbnail ahead of time for smoother previews
+    if (type == MessageType.video && file != null) {
+      videoThumbnailFile = await _createVideoThumbnail(file);
+      localVideoThumbnailPath = videoThumbnailFile?.path;
+    }
 
     // Check msg type
     switch (type) {
@@ -750,6 +758,7 @@ class MessageController extends GetxController {
       case MessageType.video:
       case MessageType.audio:
         // Para archivos, crear el mensaje inmediatamente con el archivo local
+        final bool isVideo = type == MessageType.video;
         final Message tempMessage = Message(
           msgId: messageId,
           type: type,
@@ -757,7 +766,8 @@ class MessageController extends GetxController {
           fileUrl: file!.path, // Usar path local temporalmente para preview
           gifUrl: gifUrl ?? '',
           location: location,
-          videoThumbnail: '', // No thumbnail
+          videoThumbnail:
+              isVideo ? (localVideoThumbnailPath ?? '') : '', // thumbnail local
           senderId: AuthController.instance.currentUser.userId,
           isRead: false,
           replyMessage: replyMessage.value,
@@ -769,6 +779,12 @@ class MessageController extends GetxController {
 
         // Subir archivo en background
         fileUrl = await _uploadFile(file);
+        if (isVideo && videoThumbnailFile != null) {
+          videoThumbnailUrl = await _uploadThumbnail(videoThumbnailFile);
+          if (videoThumbnailUrl != null) {
+            await _deleteLocalFile(videoThumbnailFile);
+          }
+        }
         
         // Actualizar mensaje con URL final
         final int index = messages.indexWhere((m) => m.msgId == messageId);
@@ -780,7 +796,9 @@ class MessageController extends GetxController {
             fileUrl: fileUrl ?? '', // URL del servidor
             gifUrl: gifUrl ?? '',
             location: location,
-            videoThumbnail: '', // No thumbnail
+            videoThumbnail: isVideo
+                ? (videoThumbnailUrl ?? localVideoThumbnailPath ?? '')
+                : '',
             senderId: AuthController.instance.currentUser.userId,
             isRead: isReceiverOnline,
             replyMessage: replyMessage.value,
@@ -801,7 +819,9 @@ class MessageController extends GetxController {
       fileUrl: fileUrl ?? '',
       gifUrl: gifUrl ?? '',
       location: location,
-      videoThumbnail: '', // No thumbnail
+      videoThumbnail: type == MessageType.video
+          ? (videoThumbnailUrl ?? localVideoThumbnailPath ?? '')
+          : '',
       senderId: AuthController.instance.currentUser.userId,
       isRead: isReceiverOnline,
       replyMessage: replyMessage.value,
@@ -925,6 +945,46 @@ class MessageController extends GetxController {
     isUploading.value = uploadingFiles.isNotEmpty;
 
     return fileUrl;
+  }
+
+  Future<String?> _uploadThumbnail(File file) async {
+    try {
+      return await AppHelper.uploadFile(
+        file: file,
+        userId: AuthController.instance.currentUser.userId,
+      );
+    } catch (e) {
+      debugPrint('_uploadThumbnail() -> error: $e');
+      return null;
+    }
+  }
+
+  Future<File?> _createVideoThumbnail(File videoFile) async {
+    try {
+      final Directory tempDir = await getTemporaryDirectory();
+      final String? thumbnailPath = await VideoThumbnail.thumbnailFile(
+        video: videoFile.path,
+        thumbnailPath: tempDir.path,
+        imageFormat: ImageFormat.PNG,
+        quality: 75,
+      );
+
+      if (thumbnailPath == null) return null;
+      return File(thumbnailPath);
+    } catch (e) {
+      debugPrint('_createVideoThumbnail() -> error: $e');
+      return null;
+    }
+  }
+
+  Future<void> _deleteLocalFile(File file) async {
+    try {
+      if (await file.exists()) {
+        await file.delete();
+      }
+    } catch (e) {
+      debugPrint('_deleteLocalFile() -> error: $e');
+    }
   }
 
   // Check if a file is currently being uploaded

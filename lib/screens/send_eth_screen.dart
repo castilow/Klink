@@ -86,7 +86,7 @@ class _SendEthScreenState extends State<SendEthScreen> {
     }
   }
 
-  /// Envía la transacción Arious
+  /// Envía la transacción Klink
   Future<void> _sendTransaction() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -465,7 +465,7 @@ class _SendEthScreenState extends State<SendEthScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          'Enviar Arious',
+          'Enviar Klink',
           style: TextStyle(
             color: Colors.white,
             fontSize: 20,
@@ -781,7 +781,7 @@ class _SendEthScreenState extends State<SendEthScreen> {
                               ),
                             )
                             : const Text(
-                              'Enviar Arious',
+                              'Enviar Klink',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 16,

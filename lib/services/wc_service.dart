@@ -41,13 +41,13 @@ class WCService {
         projectId: _projectId,
         relayUrl: 'wss://relay.walletconnect.com',
         metadata: const PairingMetadata(
-                  name: 'Arious',
-        description: 'Chat + WOOP Wallet',
-        url: 'https://arious.com',
-        icons: ['https://arious.com/icon.png'],
-        redirect: Redirect(
-          native: 'arious://',
-          universal: 'https://arious.com',
+          name: 'Klink',
+          description: 'Chat + WOOP Wallet',
+          url: 'https://klink.com',
+          icons: ['https://klink.com/icon.png'],
+          redirect: Redirect(
+            native: 'klink://',
+            universal: 'https://klink.com',
           ),
         ),
       );

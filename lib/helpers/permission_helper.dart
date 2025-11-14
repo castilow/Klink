@@ -45,7 +45,7 @@ abstract class PermissionHelper {
     return DialogHelper.showAlertDialog(
       title: const Text('Permisos Requeridos'),
       content: const Text(
-        'Para subir fotos de perfil, necesitas habilitar los permisos de cámara y fotos en Configuración > Arious > Permisos',
+        'Para subir fotos de perfil, necesitas habilitar los permisos de cámara y fotos en Configuración > Klink > Permisos',
       ),
       actionText: 'Abrir Configuración',
       action: () {
