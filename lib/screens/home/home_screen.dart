@@ -331,7 +331,7 @@ class _HomeScreenState extends State<HomeScreen>
                         recordingDuration: messageController.recordingDurationValue.value,
                         isPressed: messageController.isMicPressed.value,
                         onCancel: () => messageController.onMicCancelled(),
-                        onSend: () => messageController.onMicReleased(),
+                        onSend: () => messageController.onMicTapped(),
                       )
                     : const SizedBox.shrink();
               }),

@@ -259,27 +259,35 @@ class _VoiceRecordingModeState extends State<VoiceRecordingMode>
           AnimatedBuilder(
             animation: _pulseAnimation,
             builder: (context, child) {
-              return Transform.scale(
-                scale: widget.isRecording ? _pulseAnimation.value : 1.0,
-                child: Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF00A884),
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF00A884).withOpacity(0.3),
-                        blurRadius: 12,
-                        spreadRadius: 2,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Icon(
-                    widget.isLocked ? Icons.keyboard_arrow_up : Icons.mic,
-                    color: Colors.white,
-                    size: 32,
+              return GestureDetector(
+                onTap: widget.isRecording && widget.onSend != null
+                    ? () {
+                        debugPrint('🎤 Botón de micrófono tocado en VoiceRecordingMode');
+                        widget.onSend?.call();
+                      }
+                    : null,
+                child: Transform.scale(
+                  scale: widget.isRecording ? _pulseAnimation.value : 1.0,
+                  child: Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF00A884),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF00A884).withOpacity(0.3),
+                          blurRadius: 12,
+                          spreadRadius: 2,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      widget.isLocked ? Icons.keyboard_arrow_up : Icons.mic,
+                      color: Colors.white,
+                      size: 32,
+                    ),
                   ),
                 ),
               );

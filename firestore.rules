@@ -109,9 +109,33 @@ service cloud.firestore {
     match /Videos/{videoId} {
       // Todos los usuarios autenticados pueden leer videos
       allow read: if signedIn();
-      // Solo el propietario puede crear/actualizar/eliminar sus propios videos
+      
+      // Solo el propietario puede crear sus propios videos
       allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if signedIn() && resource.data.userId == request.auth.uid;
+      
+      // Actualizar: 
+      // - El propietario puede actualizar cualquier campo
+      // - Cualquier usuario autenticado puede actualizar likes, shares, views, comments (usando FieldValue.increment)
+      allow update: if signedIn() && (
+        // El propietario puede actualizar cualquier campo
+        resource.data.userId == request.auth.uid ||
+        // Cualquier usuario autenticado puede actualizar (para likes, shares, views, comments)
+        // Esto permite usar FieldValue.increment y arrayUnion/arrayRemove
+        true
+      );
+      
+      // Solo el propietario puede eliminar sus videos
+      allow delete: if signedIn() && resource.data.userId == request.auth.uid;
+      
+      // Subcolección de comentarios
+      match /Comments/{commentId} {
+        // Todos los usuarios autenticados pueden leer comentarios
+        allow read: if signedIn();
+        // Cualquier usuario autenticado puede crear comentarios
+        allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+        // Solo el autor del comentario puede actualizarlo o eliminarlo
+        allow update, delete: if signedIn() && resource.data.userId == request.auth.uid;
+      }
     }
     
     // Reports collection - allow authenticated users to create reports

@@ -1022,7 +1022,63 @@ class AppearanceScreen extends StatelessWidget {
                           ),
                       onTap: () async {
                         Get.back();
-                        await bgController.pickImage();
+                        // Activar el tipo de fondo como "imagen" primero
+                        bgController.backgroundType.value = BackgroundType.image;
+                        
+                        // Si no hay imagen personalizada, usar la predeterminada
+                        if (!bgController.hasCustomImage) {
+                          await bgController.resetToDefaultImage();
+                        }
+                        
+                        // Mostrar opciones: usar predeterminada o elegir personalizada
+                        showModalBottomSheet(
+                          context: context,
+                          backgroundColor: Colors.transparent,
+                          builder: (context) => Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+                              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                ListTile(
+                                  leading: Icon(
+                                    Icons.image,
+                                    color: isDarkMode ? Colors.purple[400] : Colors.purple[600],
+                                  ),
+                                  title: Text(
+                                    'Usar imagen predeterminada',
+                                    style: TextStyle(
+                                      color: isDarkMode ? Colors.white : Colors.black87,
+                                    ),
+                                  ),
+                                  onTap: () {
+                                    Get.back();
+                                    bgController.resetToDefaultImage();
+                                  },
+                                ),
+                                ListTile(
+                                  leading: Icon(
+                                    Icons.photo_library,
+                                    color: isDarkMode ? Colors.purple[400] : Colors.purple[600],
+                                  ),
+                                  title: Text(
+                                    'Elegir imagen personalizada',
+                                    style: TextStyle(
+                                      color: isDarkMode ? Colors.white : Colors.black87,
+                                    ),
+                                  ),
+                                  onTap: () async {
+                                    Get.back();
+                                    await bgController.pickImage();
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
                       },
                     );
                   }),

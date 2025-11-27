@@ -45,6 +45,12 @@ class _VideosScreenState extends State<VideosScreen> with WidgetsBindingObserver
       if (index != 2) {
         // Si no estamos en la pantalla de videos, pausar todos los videos
         controller.pauseAllVideos();
+      } else {
+        // Si acabamos de entrar a la sección de videos, reproducir el video actual automáticamente
+        // Esperar un momento para asegurar que la UI está lista
+        Future.delayed(const Duration(milliseconds: 300), () {
+          controller.playCurrentVideoIfInSection();
+        });
       }
     });
   }
@@ -113,7 +119,13 @@ class _VideosScreenState extends State<VideosScreen> with WidgetsBindingObserver
     return PageView.builder(
       scrollDirection: Axis.vertical,
       itemCount: controller.videos.length,
-      onPageChanged: controller.onPageChanged,
+      onPageChanged: (index) {
+        controller.onPageChanged(index);
+        // Asegurar que el video se reproduzca cuando cambiamos de página
+        Future.delayed(const Duration(milliseconds: 200), () {
+          controller.playCurrentVideoIfInSection();
+        });
+      },
       itemBuilder: (context, index) {
         final video = controller.videos[index];
         return _VideoPlayerWidget(
@@ -648,8 +660,7 @@ class _VideoPlayerWidgetState extends State<_VideoPlayerWidget> with SingleTicke
                           label: _formatCount(widget.video.shares),
                           onTap: () {
                             HapticFeedback.mediumImpact();
-                            widget.controller.incrementShare(widget.video.id);
-                            _showShareModal(context, widget.controller);
+                            _showShareModal(context, widget.controller, widget.video.id);
                           },
                         ),
                         const SizedBox(height: 20), // Increased spacing
@@ -1303,7 +1314,7 @@ void _showCommentsModal(BuildContext context, VideosController controller, Strin
   );
 }
 
-void _showShareModal(BuildContext context, VideosController controller) {
+void _showShareModal(BuildContext context, VideosController controller, String videoId) {
   controller.fetchContacts();
   
   showModalBottomSheet(
@@ -1379,12 +1390,37 @@ void _showShareModal(BuildContext context, VideosController controller) {
                         ),
                       ),
                     ),
-                    onTap: () {
+                    onTap: () async {
                       Navigator.pop(context);
-                      DialogHelper.showSnackbarMessage(
-                        SnackMsgType.success,
-                        'Enviado a ${user.fullname}',
-                      );
+                      
+                      try {
+                        // Mostrar indicador de carga
+                        DialogHelper.showProcessingDialog(
+                          title: 'Compartiendo video...',
+                          barrierDismissible: false,
+                        );
+                        
+                        // Compartir video usando el videoId pasado al modal
+                        await controller.shareVideoWithUser(videoId, user);
+                        
+                        // Cerrar diálogo
+                        Get.back();
+                        
+                        // Mostrar mensaje de éxito
+                        DialogHelper.showSnackbarMessage(
+                          SnackMsgType.success,
+                          'Video enviado a ${user.fullname}',
+                        );
+                      } catch (e) {
+                        // Cerrar diálogo
+                        Get.back();
+                        
+                        // Mostrar mensaje de error
+                        DialogHelper.showSnackbarMessage(
+                          SnackMsgType.error,
+                          'Error al compartir video: ${e.toString()}',
+                        );
+                      }
                     },
                   );
                 },

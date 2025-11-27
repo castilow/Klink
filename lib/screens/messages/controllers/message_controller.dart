@@ -290,6 +290,8 @@ class MessageController extends GetxController {
       await audioPlayer.play();
       isPlaying = true;
       
+      debugPrint('✅ Audio iniciado correctamente: ${message.msgId}');
+      
       // Si es viewOnce, marcar como visto cuando se inicia la reproducción
       // (no esperar a que termine, porque si el usuario pausa, ya lo escuchó)
       if (message.viewOnce) {
@@ -297,8 +299,14 @@ class MessageController extends GetxController {
       }
       
     } catch (e) {
-      debugPrint('Audio playback error: $e');
+      debugPrint('❌ Audio playback error: $e');
       debugPrint('Stack trace: ${StackTrace.current}');
+      
+      // Resetear estado en caso de error
+      isPlaying = false;
+      currentPlayingMessageId = null;
+      showAudioPlayerBar.value = false;
+      currentPlayingMessage.value = null;
       
       // Provide more specific error messages
       String errorMessage = 'No se pudo reproducir el audio.';
@@ -618,9 +626,28 @@ class MessageController extends GetxController {
   }
   
   void onMicReleased() {
+    debugPrint('🎤 onMicReleased llamado');
     isMicPressed.value = false;
     if (isRecording.value) {
+      // Enviar si está grabando (incluso si está bloqueado, el usuario soltó el botón)
+      debugPrint('✅ Enviando audio desde onMicReleased...');
       stopRecordingAndSend();
+    }
+  }
+  
+  // Método para enviar audio cuando se toca el botón de micrófono
+  void onMicTapped() {
+    debugPrint('🎤 onMicTapped llamado');
+    debugPrint('   - isRecording: ${isRecording.value}');
+    debugPrint('   - isRecordingLocked: ${isRecordingLocked.value}');
+    debugPrint('   - _recordingPath: $_recordingPath');
+    
+    if (isRecording.value) {
+      // Si está grabando, enviar (incluso si está bloqueado, el usuario quiere enviar)
+      debugPrint('✅ Enviando audio desde onMicTapped...');
+      stopRecordingAndSend();
+    } else {
+      debugPrint('⚠️ No se está grabando, no se puede enviar');
     }
   }
   
@@ -649,31 +676,109 @@ class MessageController extends GetxController {
   
   Future<void> stopRecordingAndSend() async {
     try {
-      if (!isRecording.value || _recordingPath == null) return;
+      debugPrint('🛑 stopRecordingAndSend llamado');
+      debugPrint('   - isRecording: ${isRecording.value}');
+      debugPrint('   - _recordingPath: $_recordingPath');
+      
+      // Verificar si hay una grabación activa
+      if (!isRecording.value) {
+        debugPrint('⚠️ No hay grabación activa (isRecording = false)');
+        // Intentar detener de todas formas por si acaso
+        try {
+          await _audioRecorder.stop();
+        } catch (e) {
+          debugPrint('⚠️ Error al detener grabador (puede que no esté grabando): $e');
+        }
+        return;
+      }
+      
+      if (_recordingPath == null) {
+        debugPrint('⚠️ No hay ruta de grabación guardada');
+        // Intentar detener y obtener la ruta
+        try {
+          final recordingPath = await _audioRecorder.stop();
+          if (recordingPath != null) {
+            _recordingPath = recordingPath;
+            debugPrint('✅ Ruta de grabación obtenida: $recordingPath');
+          } else {
+            debugPrint('❌ No se pudo obtener la ruta de grabación');
+            return;
+          }
+        } catch (e) {
+          debugPrint('❌ Error al obtener ruta de grabación: $e');
+          return;
+        }
+      }
 
+      debugPrint('🛑 Deteniendo grabación y enviando audio...');
+      
       // Stop recording
-      await _audioRecorder.stop();
+      final recordingPath = await _audioRecorder.stop();
+      debugPrint('✅ Grabación detenida, ruta: $recordingPath');
+      
       _stopRecordingTimer();
       isRecording.value = false;
       showRecordingOverlay.value = false;
       showVoiceRecordingBar.value = false;
+      isMicPressed.value = false;
 
-      // Check if recording is too short
-      final file = File(_recordingPath!);
-      if (await file.exists()) {
-        final fileSize = await file.length();
-        if (fileSize < 1000) { // Less than 1KB
-          await file.delete();
-          return;
-        }
-
-        // Send audio message
-        await sendMessage(MessageType.audio, file: file);
+      // Usar la ruta devuelta por stop() o la guardada
+      final audioPath = recordingPath ?? _recordingPath;
+      if (audioPath == null) {
+        debugPrint('❌ No se pudo obtener la ruta del audio grabado');
+        DialogHelper.showSnackbarMessage(
+          SnackMsgType.error,
+          'Error: No se pudo guardar el audio',
+        );
+        return;
       }
-    } catch (e) {
+
+      // Check if recording file exists and is valid
+      final file = File(audioPath);
+      if (!await file.exists()) {
+        debugPrint('❌ El archivo de audio no existe: $audioPath');
+        DialogHelper.showSnackbarMessage(
+          SnackMsgType.error,
+          'Error: El archivo de audio no se guardó correctamente',
+        );
+        return;
+      }
+
+      final fileSize = await file.length();
+      debugPrint('📊 Tamaño del archivo de audio: $fileSize bytes');
+      
+      if (fileSize < 1000) { // Less than 1KB
+        debugPrint('⚠️ Audio demasiado corto, eliminando...');
+        await file.delete();
+        DialogHelper.showSnackbarMessage(
+          SnackMsgType.info,
+          'El audio es demasiado corto',
+        );
+        return;
+      }
+
+      debugPrint('✅ Enviando mensaje de audio...');
+      // Send audio message
+      await sendMessage(MessageType.audio, file: file);
+      debugPrint('✅ Mensaje de audio enviado exitosamente');
+      
+      // Limpiar la ruta de grabación después de enviar
+      _recordingPath = null;
+      
+    } catch (e, stackTrace) {
+      debugPrint('❌ Error al enviar audio: $e');
+      debugPrint('❌ Stack trace: $stackTrace');
+      
+      // Asegurar que el estado se resetee incluso si hay error
+      isRecording.value = false;
+      showRecordingOverlay.value = false;
+      showVoiceRecordingBar.value = false;
+      isMicPressed.value = false;
+      _recordingPath = null;
+      
       DialogHelper.showSnackbarMessage(
         SnackMsgType.error,
-        'Error al enviar audio: $e',
+        'Error al enviar audio: ${e.toString()}',
       );
     }
   }
@@ -1307,25 +1412,53 @@ class MessageController extends GetxController {
     // Vars
     String? fileUrl;
 
-    // Add single file to upload list
-    uploadingFiles.add(file);
+    try {
+      // Verificar que el archivo existe
+      if (!await file.exists()) {
+        debugPrint('❌ El archivo no existe: ${file.path}');
+        throw Exception('El archivo no existe');
+      }
 
-    // Update loading status
-    isUploading.value = true;
+      // Add single file to upload list
+      uploadingFiles.add(file);
 
-    // Upload file
-    fileUrl = await AppHelper.uploadFile(
-      file: file,
-      userId: AuthController.instance.currentUser.userId,
-    );
+      // Update loading status
+      isUploading.value = true;
 
-    // Remove file from uploading list
-    uploadingFiles.remove(file);
+      debugPrint('📤 Subiendo archivo: ${file.path}');
+      debugPrint('📊 Tamaño del archivo: ${await file.length()} bytes');
 
-    // Update loading status
-    isUploading.value = uploadingFiles.isNotEmpty;
+      // Upload file
+      fileUrl = await AppHelper.uploadFile(
+        file: file,
+        userId: AuthController.instance.currentUser.userId,
+      );
 
-    return fileUrl;
+      debugPrint('✅ Archivo subido exitosamente: $fileUrl');
+
+      // Remove file from uploading list
+      uploadingFiles.remove(file);
+
+      // Update loading status
+      isUploading.value = uploadingFiles.isNotEmpty;
+
+      return fileUrl;
+    } catch (e, stackTrace) {
+      debugPrint('❌ Error subiendo archivo: $e');
+      debugPrint('❌ Stack trace: $stackTrace');
+      
+      // Remove file from uploading list on error
+      uploadingFiles.remove(file);
+      isUploading.value = uploadingFiles.isNotEmpty;
+      
+      // Mostrar error al usuario
+      DialogHelper.showSnackbarMessage(
+        SnackMsgType.error,
+        'Error al subir el archivo: ${e.toString()}',
+      );
+      
+      rethrow;
+    }
   }
 
   Future<String?> _uploadThumbnail(File file) async {

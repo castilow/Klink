@@ -691,10 +691,10 @@ exports.chatWithAssistant = functions.https.onCall({
 
     // Llamar a la API de OpenAI usando https nativo
     const requestBody = {
-      model: "gpt-3.5-turbo",
+      model: "gpt-4o-mini", // Modelo más económico de OpenAI
       messages: messages,
       temperature: 0.7,
-      max_tokens: 800,
+      max_tokens: 500, // Reducido para consumir menos tokens
       presence_penalty: 0.6,
       frequency_penalty: 0.3,
     };

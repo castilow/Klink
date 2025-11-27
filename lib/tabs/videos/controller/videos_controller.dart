@@ -3,10 +3,14 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:chat_messenger/api/video_api.dart';
 import 'package:chat_messenger/api/user_api.dart';
+import 'package:chat_messenger/api/message_api.dart';
 import 'package:chat_messenger/controllers/auth_controller.dart';
 import 'package:chat_messenger/models/user.dart';
 import 'package:chat_messenger/models/comment.dart';
+import 'package:chat_messenger/models/message.dart';
+import 'package:chat_messenger/helpers/app_helper.dart';
 import 'package:chat_messenger/screens/home/controller/home_controller.dart';
+import 'package:chat_messenger/services/video_cache_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:video_player/video_player.dart';
@@ -138,29 +142,45 @@ class VideosController extends GetxController {
   Future<void> fetchComments(String videoId) async {
     isLoadingComments.value = true;
     try {
-      // Mock implementation for now as we don't have backend for comments yet
-      // In a real app, this would fetch from Firestore
-      await Future.delayed(const Duration(seconds: 1));
+      // Obtener comentarios de Firestore
+      final commentsSnapshot = await FirebaseFirestore.instance
+          .collection('Videos')
+          .doc(videoId)
+          .collection('Comments')
+          .orderBy('createdAt', descending: true)
+          .get();
+
+      final List<Comment> commentsList = [];
       
-      // Mock data
-      currentComments.value = [
-        Comment(
-          id: '1',
-          userId: 'user1',
-          text: '¡Increíble video! 🔥',
-          createdAt: DateTime.now().subtract(const Duration(minutes: 5)),
-          user: User(userId: 'user1', fullname: 'Alex', email: '', photoUrl: 'https://i.pravatar.cc/150?u=1'),
-        ),
-        Comment(
-          id: '2',
-          userId: 'user2',
-          text: 'Me encanta la edición 🎬',
-          createdAt: DateTime.now().subtract(const Duration(hours: 1)),
-          user: User(userId: 'user2', fullname: 'Sarah', email: '', photoUrl: 'https://i.pravatar.cc/150?u=2'),
-        ),
-      ];
+      for (var doc in commentsSnapshot.docs) {
+        final commentData = doc.data();
+        final comment = Comment.fromMap(commentData, doc.id);
+        
+        // Obtener información del usuario
+        try {
+          final userDoc = await FirebaseFirestore.instance
+              .collection('Users')
+              .doc(comment.userId)
+              .get();
+          
+          if (userDoc.exists) {
+            final userData = userDoc.data()!;
+            final user = User.fromMap(userData);
+            commentsList.add(comment.copyWith(user: user));
+          } else {
+            commentsList.add(comment);
+          }
+        } catch (e) {
+          debugPrint('Error obteniendo usuario para comentario: $e');
+          commentsList.add(comment);
+        }
+      }
+      
+      currentComments.value = commentsList;
+      debugPrint('✅ [VIDEOS_CONTROLLER] Comentarios cargados: ${commentsList.length}');
     } catch (e) {
-      print('Error fetching comments: $e');
+      debugPrint('❌ [VIDEOS_CONTROLLER] Error obteniendo comentarios: $e');
+      currentComments.value = [];
     } finally {
       isLoadingComments.value = false;
     }
@@ -171,26 +191,52 @@ class VideosController extends GetxController {
     
     try {
       final currentUser = AuthController.instance.currentUser;
+      final commentId = DateTime.now().millisecondsSinceEpoch.toString();
+      
+      // Crear comentario
       final newComment = Comment(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        id: commentId,
         userId: currentUser.userId,
-        text: text,
+        text: text.trim(),
         createdAt: DateTime.now(),
         user: currentUser,
       );
       
+      // Agregar a la lista local (actualización optimista)
       currentComments.insert(0, newComment);
       
-      // Update local video comment count
+      // Actualizar contador local de comentarios
       final index = videos.indexWhere((v) => v.id == videoId);
       if (index != -1) {
         final video = videos[index];
         videos[index] = video.copyWith(comments: video.comments + 1);
       }
       
-      // TODO: Save to backend
+      // Guardar en Firestore
+      await FirebaseFirestore.instance
+          .collection('Videos')
+          .doc(videoId)
+          .collection('Comments')
+          .doc(commentId)
+          .set(newComment.toMap());
+      
+      // Actualizar contador de comentarios en el documento del video
+      await FirebaseFirestore.instance
+          .collection('Videos')
+          .doc(videoId)
+          .update({
+        'comments': FieldValue.increment(1),
+      });
+      
+      debugPrint('✅ [VIDEOS_CONTROLLER] Comentario agregado: $commentId');
     } catch (e) {
-      print('Error adding comment: $e');
+      debugPrint('❌ [VIDEOS_CONTROLLER] Error agregando comentario: $e');
+      // Revertir cambio optimista
+      if (currentComments.isNotEmpty && currentComments.first.id == DateTime.now().millisecondsSinceEpoch.toString()) {
+        currentComments.removeAt(0);
+      }
+      // Recargar comentarios
+      fetchComments(videoId);
     }
   }
 
@@ -269,8 +315,25 @@ class VideosController extends GetxController {
           videos.value = videoPosts;
           isLoading.value = false;
           
+          // Precargar todos los videos en caché en segundo plano
+          for (var video in videoPosts) {
+            VideoCacheService.instance.preloadVideo(video.videoUrl);
+          }
+          
           // Inicializar reproductores para los primeros videos
           _initializeVideoPlayers();
+          
+          // Si estamos en la sección de videos, reproducir el primer video automáticamente
+          Future.delayed(const Duration(milliseconds: 500), () {
+            try {
+              final homeController = Get.find<HomeController>();
+              if (homeController.pageIndex.value == 2) {
+                playCurrentVideoIfInSection();
+              }
+            } catch (e) {
+              debugPrint('❌ [VIDEOS_CONTROLLER] Error verificando sección después de cargar videos: $e');
+            }
+          });
         },
         onError: (error) {
           debugPrint('❌ [VIDEOS_CONTROLLER] Error obteniendo videos: $error');
@@ -293,15 +356,36 @@ class VideosController extends GetxController {
     // PRIMERO: Pausar todos los videos que puedan estar reproduciéndose
     pauseAllVideos();
     
-    // SEGUNDO: Inicializar solo el video actual y los adyacentes para optimizar memoria
-    // NO reproducir aquí - solo inicializar
+    // SEGUNDO: Inicializar el video actual y más videos adyacentes para precarga optimizada
+    // Precargar: 1 anterior + actual + 3 siguientes = 5 videos totales
+    // Esto mejora la experiencia al hacer scroll
     final startIndex = (currentVideoIndex.value - 1).clamp(0, videos.length - 1);
-    final endIndex = (currentVideoIndex.value + 2).clamp(0, videos.length);
+    final endIndex = (currentVideoIndex.value + 4).clamp(0, videos.length);
     
-    for (int i = startIndex; i < endIndex; i++) {
+    // Inicializar videos de forma asíncrona y priorizada
+    // Primero el actual, luego los siguientes, luego el anterior
+    final currentIndex = currentVideoIndex.value;
+    
+    // 1. Inicializar el video actual primero (prioridad alta)
+    if (currentIndex < videos.length && !videoControllers.containsKey(videos[currentIndex].id)) {
+      _initializePlayer(videos[currentIndex]);
+    }
+    
+    // 2. Inicializar los siguientes videos (prioridad media)
+    for (int i = currentIndex + 1; i < endIndex; i++) {
       if (i < videos.length && !videoControllers.containsKey(videos[i].id)) {
-        _initializePlayer(videos[i]);
+        // Agregar delay pequeño para no saturar la red
+        Future.delayed(Duration(milliseconds: 100 * (i - currentIndex)), () {
+          _initializePlayer(videos[i]);
+        });
       }
+    }
+    
+    // 3. Inicializar el video anterior (prioridad baja)
+    if (startIndex < currentIndex && !videoControllers.containsKey(videos[startIndex].id)) {
+      Future.delayed(const Duration(milliseconds: 300), () {
+        _initializePlayer(videos[startIndex]);
+      });
     }
     
     // NO reproducir automáticamente aquí
@@ -314,24 +398,91 @@ class VideosController extends GetxController {
     if (videoControllers.containsKey(video.id)) return;
     
     try {
-      final controller = VideoPlayerController.networkUrl(
-        Uri.parse(video.videoUrl),
-      );
+      // Intentar obtener del caché primero
+      final cachedFile = await VideoCacheService.instance.getCachedFile(video.videoUrl);
       
-      await controller.initialize();
-      controller.setLooping(true);
+      VideoPlayerController controller;
       
-      // IMPORTANTE: Pausar inmediatamente después de inicializar
-      // para asegurar que no se reproduzca automáticamente
-      controller.pause();
+      if (cachedFile != null && await cachedFile.exists()) {
+        // Usar archivo en caché para reproducción instantánea
+        debugPrint('📦 [VIDEOS_CONTROLLER] Usando video en caché: ${video.id}');
+        controller = VideoPlayerController.file(cachedFile);
+      } else {
+        // Si no está en caché, usar URL de red
+        // Pero precargar en caché en segundo plano para la próxima vez
+        VideoCacheService.instance.preloadVideo(video.videoUrl);
+        
+        controller = VideoPlayerController.networkUrl(
+          Uri.parse(video.videoUrl),
+          // Configuración optimizada para carga rápida
+          videoPlayerOptions: VideoPlayerOptions(
+            mixWithOthers: true,
+            allowBackgroundPlayback: false,
+          ),
+          httpHeaders: {
+            // Headers para mejorar la carga
+            'Connection': 'keep-alive',
+          },
+        );
+      }
       
-      videoControllers[video.id] = controller;
+      // Inicializar de forma asíncrona sin bloquear
+      // Esto permite que otros videos se inicialicen en paralelo
+      controller.initialize().then((_) {
+        if (!videoControllers.containsKey(video.id)) {
+          controller.setLooping(true);
+          
+          videoControllers[video.id] = controller;
+          
+          // Verificar si este es el video actual y si estamos en la sección de videos
+          final isCurrentVideo = videos.isNotEmpty && 
+              currentVideoIndex.value < videos.length &&
+              videos[currentVideoIndex.value].id == video.id;
+          
+          if (isCurrentVideo) {
+            // Verificar si estamos en la sección de videos
+            try {
+              final homeController = Get.find<HomeController>();
+              final isInVideosSection = homeController.pageIndex.value == 2;
+              
+              if (isInVideosSection) {
+                // Reproducir automáticamente si es el video actual y estamos en la sección
+                Future.delayed(const Duration(milliseconds: 100), () {
+                  if (controller.value.isInitialized && !controller.value.isPlaying) {
+                    controller.play();
+                    debugPrint('▶️ [VIDEOS_CONTROLLER] Reproduciendo video automáticamente al inicializar: ${video.id}');
+                  }
+                });
+              } else {
+                // Si no estamos en la sección, pausar
+                controller.pause();
+                debugPrint('⏸️ [VIDEOS_CONTROLLER] Video inicializado y pausado (no en sección): ${video.id}');
+              }
+            } catch (e) {
+              // Si hay error, pausar por seguridad
+              controller.pause();
+              debugPrint('⏸️ [VIDEOS_CONTROLLER] Video inicializado y pausado (error): ${video.id}');
+            }
+          } else {
+            // Si no es el video actual, pausar
+            controller.pause();
+            debugPrint('📹 [VIDEOS_CONTROLLER] Video inicializado y pausado: ${video.id}');
+          }
+        } else {
+          // Si ya existe otro controlador, descartar este
+          controller.dispose();
+        }
+      }).catchError((e) {
+        debugPrint('❌ [VIDEOS_CONTROLLER] Error inicializando video ${video.id}: $e');
+        // Limpiar el controlador si falla
+        if (videoControllers.containsKey(video.id)) {
+          videoControllers.remove(video.id);
+        }
+        controller.dispose();
+      });
       
-      // NO reproducir automáticamente aquí - solo inicializar
-      // La reproducción se maneja en _playCurrentVideo()
-      debugPrint('📹 [VIDEOS_CONTROLLER] Video inicializado y pausado: ${video.id}');
     } catch (e) {
-      debugPrint('Error inicializando video: $e');
+      debugPrint('❌ [VIDEOS_CONTROLLER] Error creando controlador para ${video.id}: $e');
     }
   }
 
@@ -428,6 +579,29 @@ class VideosController extends GetxController {
     debugPrint('⏸️ [VIDEOS_CONTROLLER] Todos los videos pausados');
   }
 
+  // Reproducir el video actual si estamos en la sección de videos
+  void playCurrentVideoIfInSection() {
+    try {
+      final homeController = Get.find<HomeController>();
+      final isInVideosSection = homeController.pageIndex.value == 2;
+      
+      if (!isInVideosSection) {
+        debugPrint('⏸️ [VIDEOS_CONTROLLER] No estamos en la sección de videos, no reproducir');
+        return;
+      }
+      
+      if (videos.isEmpty) {
+        debugPrint('⏸️ [VIDEOS_CONTROLLER] No hay videos para reproducir');
+        return;
+      }
+      
+      // Reproducir el video actual
+      _playCurrentVideo();
+    } catch (e) {
+      debugPrint('❌ [VIDEOS_CONTROLLER] Error en playCurrentVideoIfInSection: $e');
+    }
+  }
+
   void onPageChanged(int index) {
     if (index < 0 || index >= videos.length) return;
     
@@ -460,21 +634,30 @@ class VideosController extends GetxController {
     // TERCERO: Actualizar el índice
     currentVideoIndex.value = index;
     
-    // CUARTO: Inicializar el video actual si no está inicializado
+    // CUARTO: Inicializar el video actual si no está inicializado (prioridad máxima)
     if (index < videos.length) {
       final currentVideo = videos[index];
       if (!videoControllers.containsKey(currentVideo.id)) {
-        _initializePlayer(currentVideo);
+        // Inicializar inmediatamente el video actual
+        _initializePlayer(currentVideo).then((_) {
+          // Después de inicializar, reproducir si estamos en la sección correcta
+          Future.delayed(const Duration(milliseconds: 100), () {
+            _playCurrentVideo();
+          });
+        });
+      } else {
+        // Si ya está inicializado, reproducir inmediatamente
+        Future.delayed(const Duration(milliseconds: 100), () {
+          _playCurrentVideo();
+        });
       }
     }
     
-    // QUINTO: Reproducir el video actual después de un pequeño delay
-    // (solo si estamos en la sección de videos, ya verificado arriba)
-    Future.delayed(const Duration(milliseconds: 200), () {
-      _playCurrentVideo();
-    });
+    // QUINTO: Precargar videos siguientes en segundo plano
+    // Esto mejora la experiencia al hacer scroll
+    _preloadNextVideos(index);
     
-    // Cargar más videos si estamos cerca del final
+    // SEXTO: Cargar más videos si estamos cerca del final
     if (index >= videos.length - 3 && hasMore.value && !isLoadingMore.value) {
       _loadMoreVideos();
     }
@@ -530,6 +713,11 @@ class VideosController extends GetxController {
       }
       
       videos.addAll(newVideos);
+      
+      // Precargar nuevos videos en caché en segundo plano
+      for (var video in newVideos) {
+        VideoCacheService.instance.preloadVideo(video.videoUrl);
+      }
       
       // Inicializar reproductores para los nuevos videos
       for (var video in newVideos) {
@@ -615,8 +803,66 @@ class VideosController extends GetxController {
     }
   }
 
+  // Compartir video con un usuario a través de mensajes
+  Future<void> shareVideoWithUser(String videoId, User receiver) async {
+    try {
+      final videoIndex = videos.indexWhere((v) => v.id == videoId);
+      if (videoIndex == -1) {
+        throw Exception('Video no encontrado');
+      }
+      
+      final video = videos[videoIndex];
+      
+      // Crear mensaje de video
+      final Message message = Message(
+        msgId: AppHelper.generateID,
+        senderId: AuthController.instance.currentUser.userId,
+        type: MessageType.video,
+        fileUrl: video.videoUrl,
+        videoThumbnail: video.thumbnailUrl ?? '',
+        textMsg: video.caption?.isNotEmpty == true 
+            ? 'Compartí un video: ${video.caption}' 
+            : 'Compartí un video',
+      );
+      
+      // Enviar mensaje
+      await MessageApi.sendMessage(
+        message: message,
+        receiver: receiver,
+      );
+      
+      // Incrementar contador de shares
+      await incrementShare(videoId);
+      
+      debugPrint('✅ [VIDEOS_CONTROLLER] Video compartido con ${receiver.fullname}');
+    } catch (e) {
+      debugPrint('❌ [VIDEOS_CONTROLLER] Error compartiendo video: $e');
+      rethrow;
+    }
+  }
+
   VideoPlayerController? getVideoController(String videoId) {
     return videoControllers[videoId];
+  }
+
+  // Precargar videos siguientes para mejorar la experiencia de scroll
+  void _preloadNextVideos(int currentIndex) {
+    if (videos.isEmpty) return;
+    
+    // Precargar los siguientes 2-3 videos que aún no están inicializados
+    final endIndex = (currentIndex + 3).clamp(0, videos.length);
+    
+    for (int i = currentIndex + 1; i < endIndex; i++) {
+      if (i < videos.length && !videoControllers.containsKey(videos[i].id)) {
+        // Precargar en caché primero (en segundo plano)
+        VideoCacheService.instance.preloadVideo(videos[i].videoUrl);
+        
+        // Luego inicializar el reproductor con delay escalonado
+        Future.delayed(Duration(milliseconds: 200 * (i - currentIndex)), () {
+          _initializePlayer(videos[i]);
+        });
+      }
+    }
   }
 
   // Incrementar visitas cuando se ve un video

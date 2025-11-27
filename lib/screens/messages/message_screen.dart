@@ -95,7 +95,7 @@ class MessageScreen extends StatelessWidget {
                     recordingDuration: globalController.recordingDurationValue.value,
                     isLocked: globalController.isRecordingLocked.value,
                     onCancel: () => globalController.onMicCancelled(),
-                    onSend: () => globalController.onMicReleased(),
+                    onSend: () => globalController.onMicTapped(),
                     onLock: () => globalController.onLockRecording(),
                     onPause: () => globalController.onPauseRecording(),
                   )
@@ -146,7 +146,7 @@ class MessageScreen extends StatelessWidget {
                             recordingDuration: globalController.recordingDurationValue.value,
                             isPressed: globalController.isMicPressed.value,
                             onCancel: () => globalController.onMicCancelled(),
-                            onSend: () => globalController.onMicReleased(),
+                            onSend: () => globalController.onMicTapped(),
                           )
                         : const SizedBox.shrink();
                   }),
@@ -175,19 +175,7 @@ class MessageScreen extends StatelessWidget {
                         }
                       },
                       behavior: HitTestBehavior.translucent,
-                      child: Container(
-                        // Capa superior: patrón chat1.png pequeño y repetido encima
-                        decoration: const BoxDecoration(
-                          image: DecorationImage(
-                            image: AssetImage('assets/images/chat1.png'),
-                            fit: BoxFit.none,
-                            repeat: ImageRepeat.repeat,
-                            alignment: Alignment.center,
-                            scale: 3.0,
-                            opacity: 0.1, // Make pattern subtle
-                          ),
-                        ),
-                        child: Column(
+                      child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                           // Multi-select toolbar - ELIMINADO
@@ -212,7 +200,6 @@ class MessageScreen extends StatelessWidget {
                         ),
                       ),
                     ),
-                  ),
                   
 
                 ],
