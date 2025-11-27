@@ -7,6 +7,7 @@ import 'package:chat_messenger/helpers/ads/ads_helper.dart';
 import 'package:chat_messenger/helpers/ads/banner_ad_helper.dart';
 import 'package:chat_messenger/helpers/dialog_helper.dart';
 import 'package:chat_messenger/i18n/app_languages.dart';
+import 'package:chat_messenger/i18n/language_config.dart';
 import 'package:chat_messenger/config/theme_config.dart';
 
 class LanguagesScreen extends StatefulWidget {
@@ -54,6 +55,8 @@ class _LanguagesScreenState extends State<LanguagesScreen> {
                 // Check selected
                 final bool isSelected =
                     PreferencesController.instance.langName == langName;
+                // Get flag path from LanguageConfig
+                final String flagPath = LanguageConfig.getLanguageFlag(entry.key);
 
                 return ListTile(
                   selected: isSelected,
@@ -61,7 +64,7 @@ class _LanguagesScreenState extends State<LanguagesScreen> {
                     bottom: BorderSide(color: greyColor, width: 0.5),
                   ),
                   leading: Image.asset(
-                    'assets/flags/${entry.key}.png',
+                    flagPath,
                     width: 32,
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) =>

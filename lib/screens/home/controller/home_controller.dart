@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:chat_messenger/tabs/chats/chats_screen.dart';
 import 'package:chat_messenger/screens/contacts/contacts_screen.dart';
-import 'package:chat_messenger/tabs/stories/stories_screen.dart';
+import 'package:chat_messenger/tabs/videos/videos_screen.dart';
 import 'package:chat_messenger/tabs/calls/call_hsitory_screen.dart';
 import 'package:chat_messenger/tabs/profile/profile_screen.dart';
 
@@ -15,11 +15,11 @@ class HomeController extends GetxController {
   // Vars
   final RxInt pageIndex = 0.obs;
 
-  // List of tab pages (Chats, Contacts, Historias, Calls, Settings)
+  // List of tab pages (Chats, Contacts, Videos, Calls, Settings)
   final List<Widget> pages = [
     const ChatsScreen(),
     const ContactsScreen(),
-    const StoriesScreen(),
+    const VideosScreen(),
     const CallHistoryScreen(),
     const ProfileScreen(),
   ];
@@ -29,7 +29,7 @@ class HomeController extends GetxController {
     Get.put(ContactController(), permanent: true);
     Get.put(ChatController(), permanent: true);
     Get.put(GroupController(), permanent: true);
-    Get.put(StoryController(), permanent: true);
+    Get.put(StoryController(), permanent: true); // Restaurado para historias en chats
     Get.put(CallHistoryController(), permanent: true);
     super.onInit();
   }

@@ -11,6 +11,7 @@ import 'package:chat_messenger/controllers/preferences_controller.dart';
 import 'package:chat_messenger/controllers/assistant_controller.dart';
 import 'package:chat_messenger/helpers/app_helper.dart';
 import 'package:chat_messenger/helpers/encrypt_helper.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:chat_messenger/helpers/dialog_helper.dart';
 import 'package:chat_messenger/helpers/routes_helper.dart';
@@ -23,7 +24,7 @@ import 'package:chat_messenger/tabs/groups/controllers/group_controller.dart';
 import 'package:get/get.dart';
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:audioplayers/audioplayers.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
 
 class MessageController extends GetxController {
@@ -69,6 +70,7 @@ class MessageController extends GetxController {
   // Multi-selection vars
   final RxBool isMultiSelectMode = RxBool(false);
   final RxList<Message> selectedMessages = RxList<Message>([]);
+  final RxSet<String> animatingMessageIds = RxSet<String>();
   
   // Pending deletions with undo (messages)
   final RxList<Message> _pendingMessageDeletions = RxList<Message>([]);
@@ -77,6 +79,7 @@ class MessageController extends GetxController {
   Timer? _messageDeletionTimer;
   Timer? _messageCountdownTimer;
   final RxInt _messageCountdown = RxInt(5);
+  Timer? _expiredMessagesTimer; // Timer para verificar mensajes expirados
   
   // Audio recording vars
   final RxBool isRecording = RxBool(false);
@@ -94,8 +97,11 @@ class MessageController extends GetxController {
   // Normal vars
   bool isReceiverOnline = false;
   
-  // Audio player variables
+  // Audio player variables (using just_audio)
   final AudioPlayer audioPlayer = AudioPlayer();
+  StreamSubscription<Duration>? _positionSubscription;
+  StreamSubscription<Duration?>? _durationSubscription;
+  StreamSubscription<PlayerState>? _playerStateSubscription;
   bool isPlaying = false;
   String? currentPlayingMessageId;
   Duration currentPosition = Duration.zero;
@@ -186,12 +192,27 @@ class MessageController extends GetxController {
 
 
 
-  // Audio player methods
+  // Audio player methods (using just_audio)
   Future<void> playAudio(Message message) async {
     try {
+      // Verificar si el audio es viewOnce y ya fue escuchado
+      if (message.viewOnce && message.viewedBy != null) {
+        final currentUserId = AuthController.instance.currentUser.userId;
+        if (message.viewedBy!.contains(currentUserId)) {
+          DialogHelper.showSnackbarMessage(
+            SnackMsgType.error,
+            'Este audio solo se puede escuchar una vez',
+          );
+          return;
+        }
+      }
+      
       // Stop current audio if playing
       if (isPlaying) {
         await audioPlayer.stop();
+        _positionSubscription?.cancel();
+        _durationSubscription?.cancel();
+        _playerStateSubscription?.cancel();
       }
       
       // Set new message as current
@@ -209,12 +230,12 @@ class MessageController extends GetxController {
         return;
       }
       
-      // Check if it's a URL or local file and play accordingly
+      // Cargar audio usando just_audio
+      AudioSource audioSource;
       if (audioPath.startsWith('http')) {
-        // Remote URL - validate URL format
+        // Remote URL
         try {
-          Uri.parse(audioPath);
-          await audioPlayer.play(UrlSource(audioPath));
+          audioSource = AudioSource.uri(Uri.parse(audioPath));
         } catch (e) {
           DialogHelper.showSnackbarMessage(
             SnackMsgType.error,
@@ -223,7 +244,7 @@ class MessageController extends GetxController {
           return;
         }
       } else {
-        // Local file - check if file exists
+        // Local file
         final file = File(audioPath);
         if (!await file.exists()) {
           DialogHelper.showSnackbarMessage(
@@ -232,38 +253,56 @@ class MessageController extends GetxController {
           );
           return;
         }
-        await audioPlayer.play(DeviceFileSource(audioPath));
+        audioSource = AudioSource.file(audioPath);
       }
-      isPlaying = true;
       
-      // Listen to position changes
-      audioPlayer.onPositionChanged.listen((position) {
+      // Configurar audio source
+      await audioPlayer.setAudioSource(audioSource);
+      
+      // Configurar listeners
+      _positionSubscription?.cancel();
+      _durationSubscription?.cancel();
+      _playerStateSubscription?.cancel();
+      
+      _positionSubscription = audioPlayer.positionStream.listen((position) {
         currentPosition = position;
       });
       
-      // Listen to duration changes
-      audioPlayer.onDurationChanged.listen((duration) {
-        totalDuration = duration;
+      _durationSubscription = audioPlayer.durationStream.listen((duration) {
+        if (duration != null) {
+          totalDuration = duration;
+        }
       });
       
-      // Listen to player state changes
-      audioPlayer.onPlayerStateChanged.listen((state) {
-        if (state == PlayerState.completed) {
+      _playerStateSubscription = audioPlayer.playerStateStream.listen((state) {
+        isPlaying = state.playing;
+        
+        // Si el audio se completó
+        if (state.processingState == ProcessingState.completed) {
           isPlaying = false;
           currentPlayingMessageId = null;
           showAudioPlayerBar.value = false;
           currentPlayingMessage.value = null;
-        } else if (state == PlayerState.stopped) {
-          isPlaying = false;
         }
       });
       
+      // Reproducir audio
+      await audioPlayer.play();
+      isPlaying = true;
+      
+      // Si es viewOnce, marcar como visto cuando se inicia la reproducción
+      // (no esperar a que termine, porque si el usuario pausa, ya lo escuchó)
+      if (message.viewOnce) {
+        _markAudioAsViewed(message);
+      }
+      
     } catch (e) {
       debugPrint('Audio playback error: $e');
+      debugPrint('Stack trace: ${StackTrace.current}');
       
       // Provide more specific error messages
       String errorMessage = 'No se pudo reproducir el audio.';
-      if (e.toString().contains('Failed to set source')) {
+      if (e.toString().contains('Failed to set source') || e.toString().contains('setAudioSource')) {
         errorMessage = 'El archivo de audio no es válido o no existe.';
       } else if (e.toString().contains('Network')) {
         errorMessage = 'Error de red al cargar el audio.';
@@ -284,11 +323,169 @@ class MessageController extends GetxController {
     }
   }
   
+  // Eliminar mensaje expirado de Firestore
+  Future<void> _deleteExpiredMessage(Message message) async {
+    try {
+      if (message.docRef != null) {
+        await message.docRef!.delete();
+        debugPrint('✅ Mensaje expirado eliminado de Firestore: ${message.msgId}');
+      }
+      
+      // También eliminar del otro usuario si es mensaje privado
+      if (!isGroup && user != null) {
+        final currentUser = AuthController.instance.currentUser;
+        try {
+          // Obtener referencia a la colección del otro usuario
+          final otherUserCollection = FirebaseFirestore.instance
+              .collection('Users/${user!.userId}/Chats/${currentUser.userId}/Messages');
+          await otherUserCollection.doc(message.msgId).delete();
+          debugPrint('✅ Mensaje expirado eliminado del otro usuario: ${message.msgId}');
+        } catch (e) {
+          debugPrint('⚠️ Error eliminando mensaje del otro usuario: $e');
+        }
+      }
+      
+      // Verificar si el chat queda sin mensajes y eliminarlo
+      if (!isGroup && user != null) {
+        await _checkAndDeleteEmptyChat();
+      }
+    } catch (e) {
+      debugPrint('❌ Error eliminando mensaje expirado: $e');
+    }
+  }
+  
+  // Verificar y eliminar mensajes expirados con animación
+  void _checkAndRemoveExpiredMessages() {
+    final now = DateTime.now();
+    final List<Message> expiredMessages = [];
+    
+    // Buscar mensajes expirados en la lista actual
+    for (var message in messages) {
+      if (message.isTemporary && message.expiresAt != null) {
+        if (message.expiresAt!.isBefore(now) || message.expiresAt!.difference(now).inSeconds <= 0) {
+          expiredMessages.add(message);
+        }
+      }
+    }
+    
+    // Si hay mensajes expirados, eliminarlos con animación
+    if (expiredMessages.isNotEmpty) {
+      debugPrint('⏰ Eliminando ${expiredMessages.length} mensaje(s) expirado(s) con animación');
+      
+      // Eliminar mensajes uno por uno con un pequeño delay para ver la animación
+      for (int i = 0; i < expiredMessages.length; i++) {
+        final expiredMessage = expiredMessages[i];
+        
+        // Agregar delay para que se vea la animación de eliminación
+        Future.delayed(Duration(milliseconds: i * 200), () {
+          // Eliminar de la lista local (GetX actualizará automáticamente con animación)
+          if (messages.contains(expiredMessage)) {
+            messages.remove(expiredMessage);
+            debugPrint('🗑️ Mensaje eliminado de la lista con animación: ${expiredMessage.msgId}');
+          }
+          
+          // Eliminar de Firestore en background
+          _deleteExpiredMessage(expiredMessage).catchError((e) {
+            debugPrint('❌ Error eliminando mensaje expirado de Firestore: $e');
+          });
+        });
+      }
+    }
+  }
+  
+  // Verificar y eliminar chat si no tiene mensajes
+  Future<void> _checkAndDeleteEmptyChat() async {
+    try {
+      if (user == null) return;
+      
+      final currentUser = AuthController.instance.currentUser;
+      final chatRef = FirebaseFirestore.instance
+          .collection('Users/${currentUser.userId}/Chats')
+          .doc(user!.userId);
+      
+      // Verificar si hay mensajes
+      final messagesRef = FirebaseFirestore.instance
+          .collection('Users/${currentUser.userId}/Chats/${user!.userId}/Messages');
+      
+      final messagesSnapshot = await messagesRef.limit(1).get();
+      
+      if (messagesSnapshot.docs.isEmpty) {
+        // No hay mensajes, eliminar el chat
+        await chatRef.delete();
+        debugPrint('✅ Chat eliminado (sin mensajes): ${user!.userId}');
+      }
+    } catch (e) {
+      debugPrint('⚠️ Error verificando chat vacío: $e');
+    }
+  }
+  
+  // Marcar audio como visto (viewOnce)
+  Future<void> _markAudioAsViewed(Message message) async {
+    try {
+      final currentUserId = AuthController.instance.currentUser.userId;
+      
+      // Si ya fue visto por este usuario, no hacer nada
+      if (message.viewedBy != null && message.viewedBy!.contains(currentUserId)) {
+        return;
+      }
+      
+      // Agregar usuario a la lista de vistos
+      final updatedViewedBy = List<String>.from(message.viewedBy ?? []);
+      if (!updatedViewedBy.contains(currentUserId)) {
+        updatedViewedBy.add(currentUserId);
+      }
+      
+      // Actualizar en Firestore
+      if (message.docRef != null) {
+        await message.docRef!.update({
+          'viewedBy': updatedViewedBy,
+        });
+      }
+      
+      // Actualizar en la lista local
+      final index = messages.indexWhere((m) => m.msgId == message.msgId);
+      if (index != -1) {
+        final updatedMessage = Message(
+          msgId: message.msgId,
+          docRef: message.docRef,
+          senderId: message.senderId,
+          type: message.type,
+          textMsg: message.textMsg,
+          fileUrl: message.fileUrl,
+          gifUrl: message.gifUrl,
+          location: message.location,
+          videoThumbnail: message.videoThumbnail,
+          isRead: message.isRead,
+          isDeleted: message.isDeleted,
+          isForwarded: message.isForwarded,
+          sentAt: message.sentAt,
+          updatedAt: message.updatedAt,
+          replyMessage: message.replyMessage,
+          groupUpdate: message.groupUpdate,
+          reactions: message.reactions,
+          translations: message.translations,
+          detectedLanguage: message.detectedLanguage,
+          translatedAt: message.translatedAt,
+          isTemporary: message.isTemporary,
+          expiresAt: message.expiresAt,
+          viewOnce: message.viewOnce,
+          viewedBy: updatedViewedBy,
+        );
+        messages[index] = updatedMessage;
+      }
+      
+      debugPrint('✅ Audio marcado como visto: ${message.msgId}');
+    } catch (e) {
+      debugPrint('❌ Error marcando audio como visto: $e');
+    }
+  }
+  
   Future<void> pauseAudio() async {
     try {
       await audioPlayer.pause();
       isPlaying = false;
     } catch (e) {
+      debugPrint('Error al pausar audio: $e');
       DialogHelper.showSnackbarMessage(
         SnackMsgType.error,
         'Error al pausar audio: $e',
@@ -298,9 +495,10 @@ class MessageController extends GetxController {
   
   Future<void> resumeAudio() async {
     try {
-      await audioPlayer.resume();
+      await audioPlayer.play();
       isPlaying = true;
     } catch (e) {
+      debugPrint('Error al reanudar audio: $e');
       DialogHelper.showSnackbarMessage(
         SnackMsgType.error,
         'Error al reanudar audio: $e',
@@ -315,11 +513,11 @@ class MessageController extends GetxController {
       currentPlayingMessageId = null;
       showAudioPlayerBar.value = false;
       currentPlayingMessage.value = null;
+      _positionSubscription?.cancel();
+      _durationSubscription?.cancel();
+      _playerStateSubscription?.cancel();
     } catch (e) {
-      DialogHelper.showSnackbarMessage(
-        SnackMsgType.error,
-        'Error al detener audio: $e',
-      );
+      debugPrint('Error al detener audio: $e');
     }
   }
   
@@ -334,7 +532,7 @@ class MessageController extends GetxController {
         playbackSpeed = 1.0;
       }
       
-      await audioPlayer.setPlaybackRate(playbackSpeed);
+      await audioPlayer.setSpeed(playbackSpeed);
     } catch (e) {
       DialogHelper.showSnackbarMessage(
         SnackMsgType.error,
@@ -510,8 +708,27 @@ class MessageController extends GetxController {
 
   Future<void> deleteSelectedMessages() async {
     if (selectedMessages.isEmpty) return;
-    await _deleteMessagesWithUndo(List<Message>.from(selectedMessages));
+
+    // 1. Add messages to animating set to trigger UI animation
+    final messagesToDelete = List<Message>.from(selectedMessages);
+    debugPrint('🗑️ Starting deletion animation for ${messagesToDelete.length} messages');
+    for (final msg in messagesToDelete) {
+      animatingMessageIds.add(msg.msgId);
+    }
+    debugPrint('✨ Added to animatingMessageIds: $animatingMessageIds');
+    
+    // Exit selection mode immediately so UI looks clean during animation
     exitMultiSelectMode();
+
+    // 2. Wait for animation to finish (allow extra time for capture + animation)
+    await Future.delayed(const Duration(milliseconds: 1000));
+    debugPrint('⏱️ Animation delay finished, proceeding to delete');
+
+    // 3. Proceed with actual deletion logic
+    await _deleteMessagesWithUndo(messagesToDelete);
+    
+    // 4. Clear animating set
+    animatingMessageIds.clear();
   }
 
   Future<void> _deleteMessagesWithUndo(List<Message> toDelete) async {
@@ -670,6 +887,12 @@ class MessageController extends GetxController {
         UserApi.updateUserTypingStatus(value, user!.userId);
       });
     }
+    
+    // Iniciar timer para verificar mensajes expirados cada 5 segundos
+    _expiredMessagesTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      _checkAndRemoveExpiredMessages();
+    });
+    
     super.onInit();
   }
 
@@ -678,11 +901,19 @@ class MessageController extends GetxController {
     // Clear the previous one
     _groupController.clearSelectedGroup();
     _recordingTimer?.cancel();
+    _expiredMessagesTimer?.cancel(); // Cancelar timer de mensajes expirados
     _audioRecorder.dispose();
     chatFocusNode.dispose();
     textController.dispose();
     scrollController.dispose();
     _stream?.cancel();
+    
+    // Limpiar listeners de audio
+    _positionSubscription?.cancel();
+    _durationSubscription?.cancel();
+    _playerStateSubscription?.cancel();
+    audioPlayer.dispose();
+    
     super.onClose();
   }
 
@@ -692,11 +923,20 @@ class MessageController extends GetxController {
       _stream =
           MessageApi.getGroupMessages(selectedGroup!.groupId).listen((event) {
         debugPrint('Group Messages Received: ${event.length}');
+        // Filtrar mensajes expirados
+        final now = DateTime.now();
+        final validMessages = event.where((message) {
+          if (message.isTemporary && message.expiresAt != null) {
+            return message.expiresAt!.isAfter(now);
+          }
+          return true;
+        }).toList();
+        
         // Log individual messages for debugging
-        for (var message in event) {
+        for (var message in validMessages) {
           debugPrint('Group Message - ID: ${message.msgId}, Type: ${message.type}, Text: ${message.textMsg.isEmpty ? "Empty" : "Has content"}');
         }
-        messages.value = event;
+        messages.value = validMessages;
         isLoading.value = false;
         scrollToBottom();
       }, onError: (e) {
@@ -713,8 +953,42 @@ class MessageController extends GetxController {
       
       _stream = MessageApi.getMessages(user!.userId).listen((event) async {
         debugPrint('Messages Received: ${event.length}');
-        // Log individual messages for debugging (incluye info de sender para depurar traducción)
+        
+        // Filtrar mensajes expirados
+        final now = DateTime.now();
+        final List<Message> validMessages = [];
+        final List<Message> expiredMessages = [];
+        
         for (var message in event) {
+          if (message.isTemporary && message.expiresAt != null) {
+            final isExpired = message.expiresAt!.isBefore(now) || message.expiresAt!.difference(now).inSeconds <= 0;
+            if (isExpired) {
+              debugPrint('⏰ Mensaje expirado detectado: ${message.msgId}');
+              debugPrint('   - expiresAt: ${message.expiresAt}');
+              debugPrint('   - now: $now');
+              expiredMessages.add(message);
+              // Eliminar mensaje expirado de Firestore (no esperar)
+              _deleteExpiredMessage(message).catchError((e) {
+                debugPrint('❌ Error eliminando mensaje expirado: $e');
+              });
+            } else {
+              final timeLeft = message.expiresAt!.difference(now);
+              debugPrint('⏰ Mensaje temporal activo: ${message.msgId}');
+              debugPrint('   - expiresAt: ${message.expiresAt}');
+              debugPrint('   - Tiempo restante: ${timeLeft.inHours}h ${timeLeft.inMinutes.remainder(60)}m');
+              validMessages.add(message);
+            }
+          } else {
+            validMessages.add(message);
+          }
+        }
+        
+        if (expiredMessages.isNotEmpty) {
+          debugPrint('🗑️ Eliminando ${expiredMessages.length} mensaje(s) expirado(s) de la lista local');
+        }
+        
+        // Log individual messages for debugging (incluye info de sender para depurar traducción)
+        for (var message in validMessages) {
           debugPrint(
             'Private Message - ID: ${message.msgId}, '
             'Type: ${message.type}, '
@@ -726,7 +1000,7 @@ class MessageController extends GetxController {
         }
         
         // Actualizar lista local primero
-        messages.value = event;
+        messages.value = validMessages;
         
         // Traducir mensajes que no tienen traducción usando la lista actual
         await _translateMessagesIfNeeded(messages);
@@ -775,6 +1049,18 @@ class MessageController extends GetxController {
       case MessageType.audio:
         // Para archivos, crear el mensaje inmediatamente con el archivo local
         final bool isVideo = type == MessageType.video;
+        // Obtener preferencias del usuario actual
+        final currentUser = AuthController.instance.currentUser;
+        final isTemporary = currentUser.temporaryMessagesEnabled;
+        final isViewOnce = type == MessageType.audio && currentUser.audioViewOnceEnabled;
+        
+        // Calcular fecha de expiración si es temporal (PRUEBA: 1 minuto en lugar de 24 horas)
+        DateTime? expiresAt;
+        if (isTemporary) {
+          expiresAt = DateTime.now().add(const Duration(minutes: 1)); // ⚠️ PRUEBA: Cambiado a 1 minuto
+          debugPrint('⏰ Mensaje temporal creado (PRUEBA 1 minuto): expiresAt = ${expiresAt.toString()}');
+        }
+        
         final Message tempMessage = Message(
           msgId: messageId,
           type: type,
@@ -784,9 +1070,13 @@ class MessageController extends GetxController {
           location: location,
           videoThumbnail:
               isVideo ? (localVideoThumbnailPath ?? '') : '', // thumbnail local
-          senderId: AuthController.instance.currentUser.userId,
+          senderId: currentUser.userId,
           isRead: false,
           replyMessage: replyMessage.value,
+          isTemporary: isTemporary,
+          expiresAt: expiresAt,
+          viewOnce: isViewOnce,
+          viewedBy: isViewOnce ? [] : null,
         );
 
         // Agregar mensaje temporal a la lista inmediatamente
@@ -805,6 +1095,17 @@ class MessageController extends GetxController {
         // Actualizar mensaje con URL final
         final int index = messages.indexWhere((m) => m.msgId == messageId);
         if (index != -1) {
+          // Obtener preferencias del usuario actual
+          final currentUser = AuthController.instance.currentUser;
+          final isTemporary = currentUser.temporaryMessagesEnabled;
+          final isViewOnce = type == MessageType.audio && currentUser.audioViewOnceEnabled;
+          
+        // Calcular fecha de expiración si es temporal (PRUEBA: 1 minuto en lugar de 24 horas)
+        DateTime? expiresAt;
+        if (isTemporary) {
+          expiresAt = DateTime.now().add(const Duration(minutes: 1)); // ⚠️ PRUEBA: Cambiado a 1 minuto
+        }
+          
           final updatedMessage = Message(
             msgId: messageId,
             type: type,
@@ -815,9 +1116,13 @@ class MessageController extends GetxController {
             videoThumbnail: isVideo
                 ? (videoThumbnailUrl ?? localVideoThumbnailPath ?? '')
                 : '',
-            senderId: AuthController.instance.currentUser.userId,
+            senderId: currentUser.userId,
             isRead: isReceiverOnline,
             replyMessage: replyMessage.value,
+            isTemporary: isTemporary,
+            expiresAt: expiresAt,
+            viewOnce: isViewOnce,
+            viewedBy: isViewOnce ? [] : null,
           );
           messages[index] = updatedMessage;
         }
@@ -828,6 +1133,20 @@ class MessageController extends GetxController {
     }
 
     // <--- Build final message --->
+    // Obtener preferencias del usuario actual
+    final currentUser = AuthController.instance.currentUser;
+    final isTemporary = currentUser.temporaryMessagesEnabled;
+    final isViewOnce = type == MessageType.audio && currentUser.audioViewOnceEnabled;
+    
+    debugPrint('📝 Enviando mensaje: isTemporary = $isTemporary, isViewOnce = $isViewOnce');
+    
+    // Calcular fecha de expiración si es temporal (PRUEBA: 1 minuto en lugar de 24 horas)
+    DateTime? expiresAt;
+    if (isTemporary) {
+      expiresAt = DateTime.now().add(const Duration(minutes: 1)); // ⚠️ PRUEBA: Cambiado a 1 minuto
+      debugPrint('⏰ Mensaje temporal creado (PRUEBA 1 minuto): expiresAt = ${expiresAt.toString()}');
+    }
+    
     final Message message = Message(
       msgId: messageId,
       type: type,
@@ -838,9 +1157,13 @@ class MessageController extends GetxController {
       videoThumbnail: type == MessageType.video
           ? (videoThumbnailUrl ?? localVideoThumbnailPath ?? '')
           : '',
-      senderId: AuthController.instance.currentUser.userId,
+      senderId: currentUser.userId,
       isRead: isReceiverOnline,
       replyMessage: replyMessage.value,
+      isTemporary: isTemporary,
+      expiresAt: expiresAt,
+      viewOnce: isViewOnce,
+      viewedBy: isViewOnce ? [] : null,
     );
 
     // Para mensajes sin archivo, agregar a la lista ahora

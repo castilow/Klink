@@ -133,7 +133,19 @@ abstract class ChatApi {
           // Check if the document ID is not a group ID (groups use groupId as document ID)
           final User? user = await UserApi.getUser(doc.id);
           if (user != null) {
-            chats.add(Chat.fromMap(data, doc: doc, receiver: user));
+            // Verificar si el chat tiene mensajes
+            final messagesRef = _firestore
+                .collection('Users/${currentUer.userId}/Chats/${doc.id}/Messages');
+            final messagesSnapshot = await messagesRef.limit(1).get();
+            
+            // Solo agregar el chat si tiene mensajes
+            if (messagesSnapshot.docs.isNotEmpty) {
+              chats.add(Chat.fromMap(data, doc: doc, receiver: user));
+            } else {
+              // Eliminar el chat si no tiene mensajes
+              await doc.reference.delete();
+              debugPrint('✅ Chat eliminado (sin mensajes): ${doc.id}');
+            }
           }
         }
       }

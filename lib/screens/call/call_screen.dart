@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:chat_messenger/models/user.dart';
@@ -22,7 +23,6 @@ class CallScreen extends StatelessWidget {
         // Handle incoming call from notification
         if (isIncoming && channelId != null) {
           WidgetsBinding.instance.addPostFrameCallback((_) async {
-            // Handle the incoming call with ZEGOCLOUD
             await controller.handleIncomingCall(
               callerId: user.userId,
               channelId: channelId,
@@ -43,189 +43,300 @@ class CallScreen extends StatelessWidget {
         }
 
         return Scaffold(
-          backgroundColor: Colors.black,
-          body: SafeArea(
-            child: Column(
-              children: [
-                // Top section with user info
-                Expanded(
-                  flex: 2,
+          body: Stack(
+            fit: StackFit.expand,
+            children: [
+              // 1. Dynamic Background (Blurred Avatar)
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  image: user.photoUrl.isNotEmpty
+                      ? DecorationImage(
+                          image: NetworkImage(user.photoUrl),
+                          fit: BoxFit.cover,
+                          opacity: 0.6,
+                        )
+                      : null,
+                ),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                   child: Container(
-                    padding: const EdgeInsets.all(32),
-                    child: Column(
+                    color: Colors.black.withOpacity(0.4),
+                  ),
+                ),
+              ),
+              
+              // 2. Main Content
+              SafeArea(
+                child: Column(
+                  children: [
+                    const SizedBox(height: 40),
+                    
+                    // Top Section: Encryption & Info
+                    Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // User photo
-                        CachedCircleAvatar(
-                          backgroundColor: user.photoUrl.isEmpty ? secondaryColor : primaryColor,
-                          imageUrl: user.photoUrl,
-                          borderWidth: 0,
-                          padding: 0,
-                          radius: 80,
+                        Icon(Icons.lock, size: 12, color: Colors.white.withOpacity(0.7)),
+                        const SizedBox(width: 4),
+                        Text(
+                          'End-to-end encrypted',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.7),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                    
+                    const Spacer(flex: 1),
+                    
+                    // User Info Section
+                    Column(
+                      children: [
+                        // Avatar with ripple effect (simulated with container shadow)
+                        Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.white.withOpacity(0.1),
+                                blurRadius: 40,
+                                spreadRadius: 10,
+                              ),
+                            ],
+                          ),
+                          child: CachedCircleAvatar(
+                            backgroundColor: user.photoUrl.isEmpty ? secondaryColor : primaryColor,
+                            imageUrl: user.photoUrl,
+                            borderWidth: 0,
+                            padding: 0,
+                            radius: 60, // Slightly smaller for modern look
+                          ),
                         ),
                         const SizedBox(height: 24),
-                        // User name
+                        
+                        // Name
                         Text(
                           user.fullname,
                           style: const TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w600,
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
                             color: Colors.white,
+                            letterSpacing: 0.5,
                           ),
                         ),
                         const SizedBox(height: 8),
-                        // Call status
-                        Text(
-                          isIncoming ? 'Llamada entrante...' : 'Llamando...',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            color: Colors.white70,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        // Call duration (for ongoing calls)
+                        
+                        // Status / Duration
                         if (!isIncoming && controller.isCallActive.value)
                           Text(
                             controller.callDuration.value,
                             style: const TextStyle(
+                              fontSize: 20,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          )
+                        else
+                          Text(
+                            isIncoming 
+                                ? (isVideo ? 'Incoming video call...' : 'Incoming voice call...') 
+                                : 'Calling...',
+                            style: TextStyle(
                               fontSize: 18,
-                              color: Colors.white70,
+                              color: Colors.white.withOpacity(0.8),
+                              fontWeight: FontWeight.w400,
                             ),
                           ),
                       ],
                     ),
-                  ),
-                ),
-                
-                // Bottom section with controls
-                Expanded(
-                  flex: 1,
-                  child: Container(
-                    padding: const EdgeInsets.all(32),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        if (isIncoming && !controller.isCallActive.value) ...[
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              // Reject
-                              GestureDetector(
-                                onTap: () async {
-                                  await controller.rejectCall();
-                                },
-                                child: Container(
-                                  width: 80,
-                                  height: 80,
-                                  decoration: const BoxDecoration(
-                                    color: Colors.red,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(
-                                    Icons.call_end,
-                                    color: Colors.white,
-                                    size: 40,
-                                  ),
-                                ),
-                              ),
-                              // Accept
-                              GestureDetector(
-                                onTap: () async {
-                                  await controller.answerCall();
-                                },
-                                child: Container(
-                                  width: 80,
-                                  height: 80,
-                                  decoration: const BoxDecoration(
-                                    color: Colors.green,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(
-                                    Icons.call,
-                                    color: Colors.white,
-                                    size: 40,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                        // Call controls row
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            // Mute button
-                            _buildControlButton(
-                              icon: controller.isMuted.value ? Icons.mic_off : Icons.mic,
-                              color: controller.isMuted.value ? Colors.red : Colors.white,
-                              onPressed: () => controller.toggleMute(),
-                            ),
-                            // Speaker button
-                            _buildControlButton(
-                              icon: controller.isSpeakerOn.value ? Icons.volume_up : Icons.volume_down,
-                              color: controller.isSpeakerOn.value ? Colors.green : Colors.white,
-                              onPressed: () => controller.toggleSpeaker(),
-                            ),
-                            // More options button
-                            _buildControlButton(
-                              icon: Icons.more_vert,
-                              color: Colors.white,
-                              onPressed: () => controller.showMoreOptions(),
-                            ),
+                    
+                    const Spacer(flex: 2),
+                    
+                    // Bottom Controls Section
+                    Container(
+                      padding: const EdgeInsets.only(bottom: 40, left: 24, right: 24),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.transparent,
+                            Colors.black.withOpacity(0.8),
                           ],
                         ),
-                        
-                        const SizedBox(height: 32),
-                        
-                        // Hang up button
-                        GestureDetector(
-                          onTap: () => controller.endCall(),
-                          child: Container(
-                            width: 80,
-                            height: 80,
-                            decoration: const BoxDecoration(
-                              color: Colors.red,
-                              shape: BoxShape.circle,
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Incoming Call Actions
+                          if (isIncoming && !controller.isCallActive.value) ...[
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                _buildActionLabel(
+                                  label: 'Decline',
+                                  child: _buildCircleButton(
+                                    icon: Icons.call_end,
+                                    color: Colors.red,
+                                    size: 70,
+                                    iconSize: 32,
+                                    onTap: () async => await controller.rejectCall(),
+                                  ),
+                                ),
+                                _buildActionLabel(
+                                  label: 'Accept',
+                                  child: _buildCircleButton(
+                                    icon: isVideo ? Icons.videocam : Icons.call,
+                                    color: const Color(0xFF25D366), // WhatsApp Green
+                                    size: 70,
+                                    iconSize: 32,
+                                    onTap: () async => await controller.answerCall(),
+                                  ),
+                                ),
+                              ],
                             ),
-                            child: const Icon(
-                              Icons.call_end,
-                              color: Colors.white,
-                              size: 40,
+                          ] else ...[
+                            // Active/Outgoing Call Controls
+                            Container(
+                              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF1F2C34), // Dark slate
+                                borderRadius: BorderRadius.circular(24),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                children: [
+                                  _buildControlIcon(
+                                    icon: controller.isSpeakerOn.value ? Icons.volume_up : Icons.volume_up_outlined,
+                                    isActive: controller.isSpeakerOn.value,
+                                    onTap: () => controller.toggleSpeaker(),
+                                  ),
+                                  if (isVideo)
+                                    _buildControlIcon(
+                                      icon: Icons.videocam,
+                                      isActive: true, // Always active for video call initially
+                                      onTap: () {}, // Toggle video logic if needed
+                                    ),
+                                  _buildControlIcon(
+                                    icon: controller.isMuted.value ? Icons.mic_off : Icons.mic,
+                                    isActive: !controller.isMuted.value, // Active means mic is ON
+                                    onTap: () => controller.toggleMute(),
+                                  ),
+                                  _buildControlIcon(
+                                    icon: Icons.call_end,
+                                    isActive: false, // Special style for end call
+                                    isEndCall: true,
+                                    onTap: () => controller.endCall(),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        ),
-                      ],
+                          ],
+                        ],
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              
+              // Back Button (Top Left)
+              Positioned(
+                top: 50,
+                left: 16,
+                child: IconButton(
+                  icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 32),
+                  onPressed: () => Get.back(),
+                ),
+              ),
+            ],
           ),
         );
       },
     );
   }
 
-  Widget _buildControlButton({
+  Widget _buildActionLabel({required String label, required Widget child}) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        child,
+        const SizedBox(height: 12),
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.8),
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCircleButton({
     required IconData icon,
     required Color color,
-    required VoidCallback onPressed,
+    required double size,
+    required double iconSize,
+    required VoidCallback onTap,
   }) {
     return GestureDetector(
-      onTap: onPressed,
+      onTap: onTap,
       child: Container(
-        width: 60,
-        height: 60,
+        width: size,
+        height: size,
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.2),
+          color: color,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.4),
+              blurRadius: 15,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: Icon(icon, color: Colors.white, size: iconSize),
+      ),
+    );
+  }
+
+  Widget _buildControlIcon({
+    required IconData icon,
+    required bool isActive,
+    bool isEndCall = false,
+    required VoidCallback onTap,
+  }) {
+    if (isEndCall) {
+      return GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: const BoxDecoration(
+            color: Colors.red,
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: Colors.white, size: 28),
+        ),
+      );
+    }
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isActive ? Colors.white.withOpacity(0.2) : Colors.transparent,
           shape: BoxShape.circle,
         ),
         child: Icon(
           icon,
-          color: color,
+          color: isActive ? Colors.white : Colors.white.withOpacity(0.5),
           size: 28,
         ),
       ),
     );
   }
-} 
+}
+ 

@@ -21,6 +21,9 @@ class User {
   String recordingTo;
   List<String> mutedGroups;
   DateTime? createdAt;
+  // Message preferences
+  bool temporaryMessagesEnabled; // Si el usuario quiere mensajes temporales (24 horas)
+  bool audioViewOnceEnabled; // Si el usuario quiere audios de una sola escucha
 
   User({
     this.userId = '',
@@ -40,6 +43,8 @@ class User {
     this.recordingTo = '',
     this.mutedGroups = const [],
     this.createdAt,
+    this.temporaryMessagesEnabled = false,
+    this.audioViewOnceEnabled = false,
   });
 
   // Get User first name
@@ -109,6 +114,8 @@ class User {
         recordingTo: data['recordingTo']?.toString() ?? '',
         mutedGroups: mutedGroups,
         createdAt: createdAt,
+        temporaryMessagesEnabled: data['temporaryMessagesEnabled'] ?? false,
+        audioViewOnceEnabled: data['audioViewOnceEnabled'] ?? false,
       );
     } catch (e) {
       // Return a default user if there's any error
@@ -130,6 +137,8 @@ class User {
         recordingTo: '',
         mutedGroups: const [],
         createdAt: null,
+        temporaryMessagesEnabled: data['temporaryMessagesEnabled'] ?? false,
+        audioViewOnceEnabled: data['audioViewOnceEnabled'] ?? false,
       );
     }
   }
@@ -149,6 +158,8 @@ class User {
       'isTyping': isTyping,
       'typingTo': typingTo,
       'createdAt': FieldValue.serverTimestamp(),
+      'temporaryMessagesEnabled': temporaryMessagesEnabled,
+      'audioViewOnceEnabled': audioViewOnceEnabled,
     };
   }
 }

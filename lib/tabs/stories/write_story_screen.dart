@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:ui';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:chat_messenger/api/story_api.dart';
@@ -35,25 +36,29 @@ class _WriteStoryScreenState extends State<WriteStoryScreen>
   bool isVipOnly = false;
   StoryMusic? selectedMusic;
 
-  // Paleta de colores elegante: blanco, negro y dorado
+  // Premium Color Palette
   final List<Color> colorPalette = [
-    const Color(0xFF000000), // Negro puro
-    const Color(0xFFFFFFFF), // Blanco puro
-    const Color(0xFFD4AF37), // Dorado elegante
-    const Color(0xFF1A1A1A), // Negro suave
-    const Color(0xFFFAFAFA), // Blanco cálido
-    const Color(0xFFFFD700), // Dorado brillante
-    const Color(0xFF2A2A2A), // Negro elegante
-    const Color(0xFFF5F5F5), // Blanco perla
-    const Color(0xFFB8860B), // Dorado oscuro
-    const Color(0xFF000000), // Negro puro
-    const Color(0xFFFFFFFF), // Blanco puro
-    const Color(0xFFD4AF37), // Dorado elegante
-    const Color(0xFF1A1A1A), // Negro suave
-    const Color(0xFFFAFAFA), // Blanco cálido
-    const Color(0xFFFFD700), // Dorado brillante
-    const Color(0xFF000000), // Negro puro
-    const Color(0xFFFFFFFF), // Blanco puro
+    const Color(0xFF000000), // Black
+    const Color(0xFF1A1A1A), // Dark Grey
+    const Color(0xFFFFFFFF), // White
+    const Color(0xFFF44336), // Red
+    const Color(0xFFE91E63), // Pink
+    const Color(0xFF9C27B0), // Purple
+    const Color(0xFF673AB7), // Deep Purple
+    const Color(0xFF3F51B5), // Indigo
+    const Color(0xFF2196F3), // Blue
+    const Color(0xFF03A9F4), // Light Blue
+    const Color(0xFF00BCD4), // Cyan
+    const Color(0xFF009688), // Teal
+    const Color(0xFF4CAF50), // Green
+    const Color(0xFF8BC34A), // Light Green
+    const Color(0xFFCDDC39), // Lime
+    const Color(0xFFFFEB3B), // Yellow
+    const Color(0xFFFFC107), // Amber
+    const Color(0xFFFF9800), // Orange
+    const Color(0xFFFF5722), // Deep Orange
+    const Color(0xFF795548), // Brown
+    const Color(0xFF607D8B), // Blue Grey
   ];
 
   @override
@@ -96,7 +101,7 @@ class _WriteStoryScreenState extends State<WriteStoryScreen>
     setState(() {
       showEmojiKeyboard = !showEmojiKeyboard;
       if (showEmojiKeyboard) {
-        showColorPicker = false; // Cerrar selector de colores
+        showColorPicker = false;
       }
     });
     if (showEmojiKeyboard) {
@@ -110,7 +115,7 @@ class _WriteStoryScreenState extends State<WriteStoryScreen>
     setState(() {
       showColorPicker = !showColorPicker;
       if (showColorPicker) {
-        showEmojiKeyboard = false; // Cerrar teclado emoji
+        showEmojiKeyboard = false;
         _keyboardFocus.unfocus();
       }
     });
@@ -119,9 +124,8 @@ class _WriteStoryScreenState extends State<WriteStoryScreen>
   void _selectColor(Color color) {
     setState(() {
       backgroundColor = color;
-      showColorPicker = false;
+      // Keep color picker open for better UX
     });
-    _keyboardFocus.requestFocus();
   }
 
   void _generateRandomColor() {
@@ -136,27 +140,8 @@ class _WriteStoryScreenState extends State<WriteStoryScreen>
       duration: const Duration(milliseconds: 300),
       opacity: showEmojiKeyboard ? 1.0 : 0.0,
       child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Colors.white.withValues(alpha: 0.98),
-              Colors.white.withValues(alpha: 0.95),
-            ],
-          ),
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(25),
-            topRight: Radius.circular(25),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.3),
-              blurRadius: 20,
-              offset: const Offset(0, -8),
-            ),
-          ],
-        ),
+        height: height,
+        color: const Color(0xFF121212),
         child: EmojiPicker(
           onEmojiSelected: ((category, emoji) {
             setState(() {
@@ -168,7 +153,13 @@ class _WriteStoryScreenState extends State<WriteStoryScreen>
             checkPlatformCompatibility: true,
             emojiViewConfig: EmojiViewConfig(
               emojiSizeMax: isTablet ? 32 : 28,
-              backgroundColor: Colors.transparent,
+              backgroundColor: const Color(0xFF121212),
+              columns: 7,
+            ),
+            categoryViewConfig: const CategoryViewConfig(
+              backgroundColor: Color(0xFF121212),
+              indicatorColor: Colors.blue,
+              iconColorSelected: Colors.blue,
             ),
           ),
         ),
@@ -177,100 +168,94 @@ class _WriteStoryScreenState extends State<WriteStoryScreen>
   }
 
   Widget _buildColorPicker() {
-    return AnimatedOpacity(
+    return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
-      opacity: showColorPicker ? 1.0 : 0.0,
+      height: showColorPicker ? 80 : 0,
+      child: showColorPicker
+          ? ClipRect(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.6),
+                  ),
+                  child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: colorPalette.length,
+                itemBuilder: (context, index) {
+                  final color = colorPalette[index];
+                  final isSelected = backgroundColor == color;
+
+                  return GestureDetector(
+                    onTap: () => _selectColor(color),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      margin: const EdgeInsets.symmetric(horizontal: 8),
+                      width: isSelected ? 40 : 32,
+                      height: isSelected ? 40 : 32,
+                      decoration: BoxDecoration(
+                        color: color,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Colors.white,
+                          width: isSelected ? 3 : 1.5,
+                        ),
+                        boxShadow: [
+                          if (isSelected)
+                            BoxShadow(
+                              color: color.withOpacity(0.5),
+                              blurRadius: 8,
+                              spreadRadius: 2,
+                            ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+                ),
+              ),
+            )
+          : const SizedBox.shrink(),
+    );
+  }
+
+  Widget _buildTopBarIcon({
+    required IconData icon,
+    required VoidCallback onPressed,
+    required String tooltip,
+    bool isActive = false,
+    Color? activeColor,
+  }) {
+    return GestureDetector(
+      onTap: onPressed,
       child: Container(
+        margin: const EdgeInsets.only(left: 16),
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Colors.black.withValues(alpha: 0.95),
-              Colors.black.withValues(alpha: 0.85),
-            ],
+          shape: BoxShape.circle,
+          color: isActive 
+              ? (activeColor ?? Colors.white).withOpacity(0.2) 
+              : Colors.black.withOpacity(0.3),
+          border: Border.all(
+            color: isActive 
+                ? (activeColor ?? Colors.white).withOpacity(0.5) 
+                : Colors.transparent,
+            width: 1,
           ),
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(25),
-            topRight: Radius.circular(25),
-          ),
-          border: Border(
-            top: BorderSide(
-              color: Colors.white.withValues(alpha: 0.2),
-              width: 1,
-            ),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.5),
-              blurRadius: 25,
-              offset: const Offset(0, -10),
+        ),
+        child: Icon(
+          icon,
+          color: isActive ? (activeColor ?? Colors.white) : Colors.white,
+          size: 24,
+          shadows: [
+            Shadow(
+              color: Colors.black.withOpacity(0.5),
+              blurRadius: 4,
             ),
           ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            children: [
-              // Indicador superior
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 20),
-              // Grid de colores
-              Expanded(
-                child: GridView.builder(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 8,
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
-                    childAspectRatio: 1,
-                  ),
-                  itemCount: colorPalette.length,
-                  itemBuilder: (context, index) {
-                    final color = colorPalette[index];
-                    final isSelected = backgroundColor == color;
-
-                    return GestureDetector(
-                      onTap: () => _selectColor(color),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        decoration: BoxDecoration(
-                          color: color,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: isSelected
-                                ? Colors.white
-                                : Colors.white.withValues(alpha: 0.3),
-                            width: isSelected ? 3 : 2,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: color.withValues(alpha: 0.4),
-                              blurRadius: isSelected ? 12 : 8,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: isSelected
-                            ? const Icon(
-                                Icons.check,
-                                color: Colors.white,
-                                size: 16,
-                              )
-                            : null,
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );
@@ -283,385 +268,162 @@ class _WriteStoryScreenState extends State<WriteStoryScreen>
     final isLargeScreen = screenWidth > 900;
 
     // Responsive sizing
-    final horizontalPadding = isLargeScreen ? 32.0 : (isTablet ? 24.0 : 16.0);
-    final textFontSize = isLargeScreen ? 28.0 : (isTablet ? 24.0 : 20.0);
-    final hintFontSize = isLargeScreen ? 24.0 : (isTablet ? 20.0 : 18.0);
-    final emojiPickerHeight = isTablet ? 280.0 : 240.0;
-    final colorPickerHeight = 120.0;
-    final bottomPadding = MediaQuery.of(context).padding.bottom;
+    final textFontSize = isLargeScreen ? 36.0 : (isTablet ? 32.0 : 28.0);
+    final hintFontSize = isLargeScreen ? 32.0 : (isTablet ? 28.0 : 24.0);
+    final emojiPickerHeight = isTablet ? 300.0 : 260.0;
 
     return Scaffold(
-      backgroundColor: backgroundColor,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        leading: Navigator.canPop(context) ? IconButton(
-          icon: const Icon(Icons.close, color: Colors.white),
-          onPressed: () => Get.back(),
-        ) : null,
-        actions: [
-          // Random color button
+      body: Stack(
+        children: [
+          // Background
           AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            margin: const EdgeInsets.only(right: 12),
+            duration: const Duration(milliseconds: 500),
             decoration: BoxDecoration(
-              shape: BoxShape.circle,
               gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
                 colors: [
-                  Colors.white.withValues(alpha: 0.2),
-                  Colors.white.withValues(alpha: 0.1),
+                  backgroundColor,
+                  Color.lerp(backgroundColor, Colors.black, 0.4)!,
                 ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.3),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.shuffle, color: Colors.white, size: 22),
-              onPressed: _generateRandomColor,
-              tooltip: 'Color aleatorio',
             ),
           ),
-          // Color palette button
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            margin: const EdgeInsets.only(right: 12),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                colors: showColorPicker
-                    ? [
-                        Colors.white.withValues(alpha: 0.4),
-                        Colors.white.withValues(alpha: 0.2),
-                      ]
-                    : [
-                        Colors.white.withValues(alpha: 0.2),
-                        Colors.white.withValues(alpha: 0.1),
-                      ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.3),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.palette, color: Colors.white, size: 22),
-              onPressed: _toggleColorPicker,
-              tooltip: 'Seleccionar color',
-            ),
-          ),
-          // Emoji button
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            margin: const EdgeInsets.only(right: 12),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                colors: showEmojiKeyboard
-                    ? [
-                        Colors.white.withValues(alpha: 0.4),
-                        Colors.white.withValues(alpha: 0.2),
-                      ]
-                    : [
-                        Colors.white.withValues(alpha: 0.2),
-                        Colors.white.withValues(alpha: 0.1),
-                      ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.3),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: IconButton(
-              icon: const Icon(
-                Icons.emoji_emotions,
-                color: Colors.white,
-                size: 22,
-              ),
-              onPressed: _toggleEmojiKeyboard,
-              tooltip: 'Emojis',
-            ),
-          ),
-          // Music button
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            margin: const EdgeInsets.only(right: 12),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                colors: selectedMusic != null
-                    ? [
-                        Colors.blue.withValues(alpha: 0.4),
-                        Colors.blue.withValues(alpha: 0.2),
-                      ]
-                    : [
-                        Colors.white.withValues(alpha: 0.2),
-                        Colors.white.withValues(alpha: 0.1),
-                      ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.3),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: IconButton(
-              icon: Icon(
-                selectedMusic != null ? Icons.music_note : Icons.music_off,
-                color: selectedMusic != null ? Colors.blue : Colors.white,
-                size: 22,
-              ),
-              onPressed: () async {
-                final music = await Get.to<StoryMusic>(
-                  () => const MusicSearchScreen(allowCurrentlyPlaying: true),
-                );
-                if (music != null) {
-                  setState(() {
-                    selectedMusic = music;
-                  });
-                }
-              },
-              tooltip: 'Agregar música',
-            ),
-          ),
-          // Settings button (VIP)
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            margin: const EdgeInsets.only(right: 16),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                colors: isVipOnly
-                    ? [
-                        Colors.amber.withValues(alpha: 0.4),
-                        Colors.amber.withValues(alpha: 0.2),
-                      ]
-                    : [
-                        Colors.white.withValues(alpha: 0.2),
-                        Colors.white.withValues(alpha: 0.1),
-                      ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.3),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: IconButton(
-              icon: Icon(
-                isVipOnly ? Icons.star : Icons.star_border,
-                color: isVipOnly ? Colors.amber : Colors.white,
-                size: 22,
-              ),
-              onPressed: () {
-                showModalBottomSheet(
-                  context: context,
-                  builder: (context) => StorySettingsBottomSheet(
-                    onSave: (friends, vip) {
-                      setState(() {
-                        bestFriendsOnly = friends;
-                        isVipOnly = vip;
-                      });
-                    },
-                    initialBestFriends: bestFriendsOnly,
-                    initialIsVipOnly: isVipOnly,
+
+          // Content
+          SafeArea(
+            child: Column(
+              children: [
+                // Top Bar
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.white, size: 28),
+                        onPressed: () => Get.back(),
+                      ),
+                      const Spacer(),
+                      
+                      // Tools
+                      _buildTopBarIcon(
+                        icon: Icons.shuffle,
+                        onPressed: _generateRandomColor,
+                        tooltip: 'Random Color',
+                      ),
+                      _buildTopBarIcon(
+                        icon: Icons.palette_outlined,
+                        onPressed: _toggleColorPicker,
+                        tooltip: 'Colors',
+                        isActive: showColorPicker,
+                      ),
+                      _buildTopBarIcon(
+                        icon: Icons.emoji_emotions_outlined,
+                        onPressed: _toggleEmojiKeyboard,
+                        tooltip: 'Emojis',
+                        isActive: showEmojiKeyboard,
+                      ),
+                      _buildTopBarIcon(
+                        icon: selectedMusic != null ? Icons.music_note : Icons.music_off_outlined,
+                        onPressed: () async {
+                          // Navegar a búsqueda de música, que a su vez navegará a selección de segmento
+                          final music = await Get.to<StoryMusic>(
+                            () => const MusicSearchScreen(allowCurrentlyPlaying: true),
+                          );
+                          if (music != null) {
+                            setState(() {
+                              selectedMusic = music;
+                            });
+                          }
+                        },
+                        tooltip: 'Music',
+                        isActive: selectedMusic != null,
+                        activeColor: Colors.blueAccent,
+                      ),
+                      _buildTopBarIcon(
+                        icon: isVipOnly ? Icons.star : Icons.star_border,
+                        onPressed: () {
+                          showModalBottomSheet(
+                            context: context,
+                            backgroundColor: Colors.transparent,
+                            builder: (context) => StorySettingsBottomSheet(
+                              onSave: (friends, vip) {
+                                setState(() {
+                                  bestFriendsOnly = friends;
+                                  isVipOnly = vip;
+                                });
+                              },
+                              initialBestFriends: bestFriendsOnly,
+                              initialIsVipOnly: isVipOnly,
+                            ),
+                          );
+                        },
+                        tooltip: 'VIP',
+                        isActive: isVipOnly,
+                        activeColor: Colors.amber,
+                      ),
+                    ],
                   ),
-                );
-              },
-              tooltip: 'Configuración VIP',
+                ),
+
+                // Main Text Area
+                Expanded(
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: TextField(
+                        controller: _textController,
+                        focusNode: _keyboardFocus,
+                        textAlign: TextAlign.center,
+                        maxLines: null,
+                        autofocus: true,
+                        style: TextStyle(
+                          fontSize: textFontSize,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          height: 1.3,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black.withOpacity(0.5),
+                              offset: const Offset(0, 2),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                        decoration: InputDecoration(
+                          hintText: 'Escribe tu historia...',
+                          hintStyle: TextStyle(
+                            fontSize: hintFontSize,
+                            color: Colors.white.withOpacity(0.5),
+                            fontWeight: FontWeight.bold,
+                          ),
+                          border: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                        ),
+                        onChanged: (value) {
+                           if (value.isNotEmpty) {
+                             _scaleController.forward();
+                           }
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Color Picker (if active)
+                _buildColorPicker(),
+
+                // Emoji Picker (if active)
+                if (showEmojiKeyboard)
+                  SizedBox(
+                    height: emojiPickerHeight,
+                    child: _buildEmojiPicker(emojiPickerHeight, isTablet),
+                  ),
+              ],
             ),
           ),
         ],
-      ),
-      body: AnimatedBuilder(
-        animation: Listenable.merge([_fadeAnimation, _scaleAnimation]),
-        builder: (context, child) {
-          final fadeValue = _fadeAnimation.value.clamp(0.0, 1.0).toDouble();
-          final scaleValue = _scaleAnimation.value.clamp(0.1, 2.0).toDouble();
-
-          return Opacity(
-            opacity: fadeValue,
-            child: Transform.scale(
-              scale: scaleValue,
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final availableHeight = constraints.maxHeight;
-                  final keyboardHeight = showEmojiKeyboard
-                      ? emojiPickerHeight
-                      : showColorPicker
-                      ? colorPickerHeight
-                      : 0.0;
-                  final contentHeight =
-                      (availableHeight - keyboardHeight - bottomPadding)
-                          .clamp(100.0, double.infinity)
-                          .toDouble();
-
-                  return Column(
-                    children: [
-                      // Main content area
-                      SizedBox(
-                        height: contentHeight,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Spacer(),
-                            // Main text input with enhanced styling (sin Hero)
-                            Padding(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: horizontalPadding,
-                              ),
-                              child: Material(
-                                color: Colors.transparent,
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 400),
-                                  curve: Curves.easeInOut,
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(20),
-                                    gradient: LinearGradient(
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                      colors: [
-                                        backgroundColor.withValues(alpha: 0.95),
-                                        backgroundColor.withValues(alpha: 0.85),
-                                      ],
-                                    ),
-                                    border: Border.all(
-                                      color: Colors.white.withValues(
-                                        alpha: 0.2,
-                                      ),
-                                      width: 1.5,
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: backgroundColor.withValues(
-                                          alpha: 0.3,
-                                        ),
-                                        blurRadius: 25,
-                                        offset: const Offset(0, 10),
-                                      ),
-                                      BoxShadow(
-                                        color: Colors.black.withValues(
-                                          alpha: 0.4,
-                                        ),
-                                        blurRadius: 15,
-                                        offset: const Offset(0, 5),
-                                      ),
-                                    ],
-                                  ),
-                                  child: TextField(
-                                    maxLines: null,
-                                    controller: _textController,
-                                    focusNode: _keyboardFocus,
-                                    textAlign: TextAlign.center,
-                                    autofocus: true,
-                                    decoration: InputDecoration(
-                                      filled: false,
-                                      hintText: '✨ Escribe tu historia ✨',
-                                      hintStyle: TextStyle(
-                                        fontSize: hintFontSize,
-                                        color: Colors.white.withValues(
-                                          alpha: 0.6,
-                                        ),
-                                        fontWeight: FontWeight.w400,
-                                        letterSpacing: 0.5,
-                                      ),
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(20),
-                                        borderSide: BorderSide.none,
-                                      ),
-                                      focusedBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(20),
-                                        borderSide: BorderSide(
-                                          color: Colors.white.withValues(
-                                            alpha: 0.4,
-                                          ),
-                                          width: 2,
-                                        ),
-                                      ),
-                                      enabledBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(20),
-                                        borderSide: BorderSide.none,
-                                      ),
-                                      contentPadding: EdgeInsets.symmetric(
-                                        horizontal: 24,
-                                        vertical: isTablet ? 32 : 28,
-                                      ),
-                                    ),
-                                    style: TextStyle(
-                                      fontSize: textFontSize,
-                                      color: Colors.white,
-                                      height: 1.5,
-                                      fontWeight: FontWeight.w600,
-                                      letterSpacing: 0.3,
-                                      shadows: [
-                                        Shadow(
-                                          color: Colors.black.withValues(
-                                            alpha: 0.6,
-                                          ),
-                                          offset: const Offset(1, 1),
-                                          blurRadius: 3,
-                                        ),
-                                      ],
-                                    ),
-                                    onChanged: (value) {
-                                      if (value.isNotEmpty) {
-                                        _scaleController.forward();
-                                      }
-                                    },
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const Spacer(),
-                          ],
-                        ),
-                      ),
-                      // Animated bottom panels (emoji picker & color picker)
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 400),
-                        curve: Curves.easeInOut,
-                        height: keyboardHeight,
-                        width: double.infinity,
-                        child: showEmojiKeyboard
-                            ? _buildEmojiPicker(emojiPickerHeight, isTablet)
-                            : showColorPicker
-                            ? _buildColorPicker()
-                            : const SizedBox.shrink(),
-                      ),
-                      SizedBox(height: bottomPadding),
-                    ],
-                  );
-                },
-              ),
-            ),
-          );
-        },
       ),
       floatingActionButton: AnimatedFloatingActionButton(
         isLoading: isLoading,
@@ -677,11 +439,11 @@ class _WriteStoryScreenState extends State<WriteStoryScreen>
             return;
           }
           setState(() => isLoading = true);
-          // Upload the text story con música (limitada a 30 segundos)
+          // Upload the text story
           await StoryApi.uploadTextStory(
             text: _textController.text.trim(),
             bgColor: backgroundColor,
-            music: selectedMusic, // Música limitada a 30 segundos
+            music: selectedMusic,
             bestFriendsOnly: bestFriendsOnly,
             isVipOnly: isVipOnly,
           );
@@ -724,13 +486,12 @@ class _AnimatedFloatingActionButtonState
       duration: const Duration(milliseconds: 1000),
       vsync: this,
     );
-    _pulseAnimation =
-        Tween<double>(
-          begin: 1.0,
-          end: 1.05, // Reducido para evitar problemas
-        ).animate(
-          CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-        );
+    _pulseAnimation = Tween<double>(
+      begin: 1.0,
+      end: 1.1,
+    ).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
     _pulseController.repeat(reverse: true);
   }
 
@@ -742,49 +503,47 @@ class _AnimatedFloatingActionButtonState
 
   @override
   Widget build(BuildContext context) {
+    if (widget.showEmojiKeyboard) return const SizedBox.shrink();
+
     return AnimatedBuilder(
       animation: _pulseAnimation,
       builder: (context, child) {
-        final pulseValue = _pulseAnimation.value.clamp(0.8, 1.2).toDouble();
-
         if (widget.isLoading) {
           return Container(
+            height: 60,
+            width: 60,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.3),
-                  blurRadius: 15,
-                  offset: const Offset(0, 5),
-                ),
-              ],
+              color: Colors.black.withOpacity(0.5),
             ),
-            child: LoadingIndicator(
-              size: (widget.isTablet ? 65 : 55).toDouble(),
-              color: Colors.white,
-            ),
+            child: const LoadingIndicator(size: 30, color: Colors.white),
           );
         }
 
         return Transform.scale(
-          scale: pulseValue,
+          scale: _pulseAnimation.value,
           child: Container(
+            height: 60,
+            width: 60,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: const LinearGradient(
-                colors: [Color(0xFF4CAF50), Color(0xFF45A049)],
+                colors: [Color(0xFF00E5FF), Color(0xFF2979FF)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF4CAF50).withValues(alpha: 0.4),
-                  blurRadius: 15,
-                  offset: const Offset(0, 5),
+                  color: const Color(0xFF2979FF).withOpacity(0.4),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
-            child: FloatingButton(icon: Icons.check, onPress: widget.onPressed),
+            child: FloatingButton(
+              icon: Icons.send,
+              onPress: widget.onPressed,
+            ),
           ),
         );
       },

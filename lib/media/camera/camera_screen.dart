@@ -56,7 +56,7 @@ class _CameraScreenState extends State<CameraScreen> {
       _cameras = await availableCameras();
       if (!mounted) return;
       _cameraController =
-          CameraController(_cameras[_selectedCamera], ResolutionPreset.high);
+          CameraController(_cameras[_selectedCamera], ResolutionPreset.veryHigh);
       await _cameraController.initialize();
       _isInitialized = true;
     } catch (e) {
@@ -86,7 +86,7 @@ class _CameraScreenState extends State<CameraScreen> {
 
     // Update camera controller
     _cameraController =
-        CameraController(_cameras[_selectedCamera], ResolutionPreset.high);
+        CameraController(_cameras[_selectedCamera], ResolutionPreset.veryHigh);
     await _cameraController.initialize();
     // Update UI
     if (!mounted) return;

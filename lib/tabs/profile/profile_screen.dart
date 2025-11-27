@@ -52,68 +52,75 @@ class ProfileScreen extends StatelessWidget {
         physics: const BouncingScrollPhysics(),
         slivers: [
           SliverAppBar(
-            expandedHeight: 140.0,
+            expandedHeight: 220.0,
             floating: false,
             pinned: true,
             backgroundColor: isDarkMode ? const Color(0xFF17212B) : Colors.white,
             foregroundColor: isDarkMode ? Colors.white : Colors.black,
             flexibleSpace: FlexibleSpaceBar(
-              titlePadding: const EdgeInsets.only(left: 16, bottom: 16),
-              title: Obx(() {
-                final user = AuthController.instance.currentUser;
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+              titlePadding: EdgeInsets.zero,
+              centerTitle: true,
+              background: Container(
+                color: isDarkMode ? const Color(0xFF17212B) : Colors.white,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    GestureDetector(
-                      onTap: () => Get.toNamed(AppRoutes.editProfile, arguments: {'user': user}),
-                      child: Container(
-                        width: 50,
-                        height: 50,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          image: user.photoUrl.isNotEmpty
-                              ? DecorationImage(image: NetworkImage(user.photoUrl), fit: BoxFit.cover)
-                              : null,
-                          color: primaryColor,
-                        ),
-                        child: user.photoUrl.isEmpty
-                            ? const Icon(Icons.person, color: Colors.white, size: 30)
-                            : null,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          user.fullname.isNotEmpty ? user.fullname : 'Usuario',
-                          style: TextStyle(
-                            color: isDarkMode ? Colors.white : Colors.black,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                    const SizedBox(height: 40), // Status bar padding
+                    Obx(() {
+                      final user = AuthController.instance.currentUser;
+                      return Column(
+                        children: [
+                          GestureDetector(
+                            onTap: () => Get.toNamed(AppRoutes.editProfile, arguments: {'user': user}),
+                            child: Container(
+                              width: 80,
+                              height: 80,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                image: user.photoUrl.isNotEmpty
+                                    ? DecorationImage(image: NetworkImage(user.photoUrl), fit: BoxFit.cover)
+                                    : null,
+                                color: primaryColor,
+                                border: Border.all(
+                                  color: isDarkMode ? Colors.white24 : Colors.grey[200]!,
+                                  width: 2,
+                                ),
+                              ),
+                              child: user.photoUrl.isEmpty
+                                  ? const Icon(Icons.person, color: Colors.white, size: 40)
+                                  : null,
+                            ),
                           ),
-                        ),
-                        Text(
-                          user.username.isNotEmpty ? '@${user.username}' : '@usuario',
-                          style: TextStyle(
-                            color: isDarkMode ? Colors.white70 : Colors.grey[600],
-                            fontSize: 12,
-                            fontWeight: FontWeight.normal,
+                          const SizedBox(height: 12),
+                          Text(
+                            user.fullname.isNotEmpty ? user.fullname : 'Usuario',
+                            style: TextStyle(
+                              color: isDarkMode ? Colors.white : Colors.black,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
+                          const SizedBox(height: 4),
+                          Text(
+                            user.username.isNotEmpty ? '@${user.username}' : '@usuario',
+                            style: TextStyle(
+                              color: isDarkMode ? Colors.white70 : Colors.grey[600],
+                              fontSize: 14,
+                              fontWeight: FontWeight.normal,
+                            ),
+                          ),
+                        ],
+                      );
+                    }),
                   ],
-                );
-              }),
+                ),
+              ),
             ),
             actions: [
               IconButton(
                 icon: const Icon(Icons.qr_code),
                 onPressed: () {}, // TODO: QR Code
               ),
-              // Search button removed as per request
               IconButton(
                 icon: const Icon(Icons.more_vert),
                 onPressed: () {
@@ -130,6 +137,16 @@ class ProfileScreen extends StatelessWidget {
                 const SizedBox(height: 16),
                 // Account Section
                 _buildSectionTitle(context, 'Account'),
+                _buildSettingsItem(
+                  context,
+                  icon: IconlyLight.infoSquare,
+                  title: 'Bio',
+                  subtitle: AuthController.instance.currentUser.bio.isNotEmpty 
+                      ? AuthController.instance.currentUser.bio 
+                      : 'Add a bio',
+                  onTap: () => Get.toNamed(AppRoutes.editProfile, arguments: {'user': AuthController.instance.currentUser}),
+                ),
+                _buildDivider(isDarkMode),
                 _buildSettingsItem(
                   context,
                   icon: IconlyLight.profile,
@@ -182,7 +199,7 @@ class ProfileScreen extends StatelessWidget {
                   context,
                   icon: IconlyLight.chat,
                   title: 'Chat Settings',
-                  onTap: () => Get.toNamed(AppRoutes.appearance), // Reusing appearance for now
+                  onTap: () => Get.toNamed(AppRoutes.chatSettings),
                 ),
                 _buildDivider(isDarkMode),
                 _buildSettingsItem(

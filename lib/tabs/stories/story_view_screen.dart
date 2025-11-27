@@ -10,6 +10,8 @@ import 'package:chat_messenger/helpers/routes_helper.dart';
 import 'package:chat_messenger/models/story/story.dart';
 import 'package:chat_messenger/models/user.dart';
 import 'package:chat_messenger/tabs/stories/controller/story_view_controller.dart';
+import 'package:chat_messenger/api/story_api.dart';
+import 'package:chat_messenger/helpers/dialog_helper.dart';
 import 'package:get/get.dart';
 import 'package:story_view/story_view.dart';
 import 'dart:ui';
@@ -243,32 +245,95 @@ class StoryViewScreen extends StatelessWidget {
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(isTablet ? 16 : 12),
                                 ),
-                                itemBuilder: (context) => [
-                                  // Report option
-                                  PopupMenuItem<String>(
-                                    value: 'report',
-                                    child: Row(
-                                      children: [
-                                        Icon(
-                                          IconlyBold.infoCircle,
-                                          color: Colors.red,
-                                          size: isTablet ? 20 : 18,
+                                itemBuilder: (context) {
+                                  final List<PopupMenuEntry<String>> items = [];
+                                  
+                                  // Delete option (solo si es el dueño)
+                                  if (story.isOwner) {
+                                    items.add(
+                                      PopupMenuItem<String>(
+                                        value: 'delete',
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              IconlyBold.delete,
+                                              color: Colors.red,
+                                              size: isTablet ? 20 : 18,
+                                            ),
+                                            SizedBox(width: isTablet ? 12 : 8),
+                                            Text(
+                                              'Eliminar historia',
+                                              style: TextStyle(
+                                                color: Colors.red,
+                                                fontSize: isTablet ? 16 : 14,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                        SizedBox(width: isTablet ? 12 : 8),
-                                        Text(
-                                          'report'.tr,
-                                          style: TextStyle(
-                                            color: Colors.red,
-                                            fontSize: isTablet ? 16 : 14,
-                                            fontWeight: FontWeight.w600,
+                                      ),
+                                    );
+                                  }
+                                  
+                                  // Report option (solo si NO es el dueño)
+                                  if (!story.isOwner) {
+                                    items.add(
+                                      PopupMenuItem<String>(
+                                        value: 'report',
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              IconlyBold.infoCircle,
+                                              color: Colors.red,
+                                              size: isTablet ? 20 : 18,
+                                            ),
+                                            SizedBox(width: isTablet ? 12 : 8),
+                                            Text(
+                                              'report'.tr,
+                                              style: TextStyle(
+                                                color: Colors.red,
+                                                fontSize: isTablet ? 16 : 14,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                  
+                                  return items;
+                                },
+                                onSelected: (value) async {
+                                  if (value == 'delete') {
+                                    // Mostrar diálogo de confirmación
+                                    final confirm = await Get.dialog<bool>(
+                                      AlertDialog(
+                                        title: const Text('Eliminar historia'),
+                                        content: const Text('¿Estás seguro de que quieres eliminar esta historia? Esta acción no se puede deshacer.'),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Get.back(result: false),
+                                            child: Text('Cancelar'.tr),
                                           ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                                onSelected: (value) {
-                                  if (value == 'report') {
+                                          TextButton(
+                                            onPressed: () => Get.back(result: true),
+                                            style: TextButton.styleFrom(
+                                              foregroundColor: Colors.red,
+                                            ),
+                                            child: const Text('Eliminar'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                    
+                                    if (confirm == true) {
+                                      // Eliminar la historia
+                                      await StoryApi.deleteStory(story: story);
+                                      // Cerrar la pantalla
+                                      Get.back();
+                                    }
+                                  } else if (value == 'report') {
                                     reportController.reportDialog(
                                       type: ReportType.story,
                                       story: story.toMap(),

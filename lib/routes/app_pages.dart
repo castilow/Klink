@@ -36,6 +36,7 @@ import 'package:chat_messenger/screens/wallet/wallet_screen.dart';
 import 'package:chat_messenger/screens/appearance_screen.dart';
 import 'package:chat_messenger/screens/bubble_color_picker_screen.dart';
 import 'package:chat_messenger/screens/text_size_screen.dart';
+import 'package:chat_messenger/screens/chat_settings_screen.dart';
 
 import 'package:chat_messenger/screens/price_screen.dart';
 import 'package:chat_messenger/screens/woop_dashboard_screen.dart';
@@ -242,6 +243,11 @@ abstract class AppPages {
     GetPage(
       name: AppRoutes.textSize,
       page: () => const TextSizeScreen(),
+
+    ),
+    GetPage(
+      name: AppRoutes.chatSettings,
+      page: () => const ChatSettingsScreen(),
 
     ),
   ];

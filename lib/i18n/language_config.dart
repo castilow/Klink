@@ -42,6 +42,36 @@ class LanguageConfig {
       'flag': 'assets/flags/ar.png',
       'nativeName': 'العربية',
     },
+    {
+      'code': 'ru',
+      'name': 'Русский - (Россия)',
+      'flag': 'assets/flags/ru.png',
+      'nativeName': 'Русский',
+    },
+    {
+      'code': 'zh',
+      'name': '中文 - (中国)',
+      'flag': 'assets/flags/zh.png',
+      'nativeName': '中文',
+    },
+    {
+      'code': 'id',
+      'name': 'Bahasa Indonesia - (Indonesia)',
+      'flag': 'assets/flags/id.png',
+      'nativeName': 'Bahasa Indonesia',
+    },
+    {
+      'code': 'ja',
+      'name': '日本語 - (日本)',
+      'flag': 'assets/flags/ja.png',
+      'nativeName': '日本語',
+    },
+    {
+      'code': 'hi',
+      'name': 'हिंदी - (भारत)',
+      'flag': 'assets/flags/in.png',
+      'nativeName': 'हिंदी',
+    },
   ];
 
   static String getLanguageName(String code) {

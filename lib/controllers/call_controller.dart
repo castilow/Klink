@@ -1,7 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:chat_messenger/api/call_history_api.dart';
+import 'package:chat_messenger/api/user_api.dart';
 import 'package:chat_messenger/helpers/dialog_helper.dart';
+import 'package:chat_messenger/models/call_history.dart';
 import 'package:chat_messenger/services/zego_call_service.dart';
 import 'package:chat_messenger/models/user.dart';
 import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
@@ -23,6 +26,12 @@ class CallController extends GetxController {
   
   // Ringtone player
   final FlutterRingtonePlayer _ringtonePlayer = FlutterRingtonePlayer();
+  
+  // Call tracking
+  User? _currentCallReceiver;
+  bool _isIncomingCall = false;
+  bool _wasCallAnswered = false;
+  Timer? _incomingCallTimeoutTimer;
 
   @override
   void onInit() {
@@ -43,6 +52,7 @@ class CallController extends GetxController {
   @override
   void onClose() {
     _stopCallTimer();
+    _incomingCallTimeoutTimer?.cancel();
     // Stop ringtone when controller is closed
     _ringtonePlayer.stop();
     super.onClose();
@@ -52,6 +62,7 @@ class CallController extends GetxController {
   void _setupZegoCallbacks() {
     _zegoService.onCallAnswered = () {
       isCallActive.value = true;
+      _wasCallAnswered = true;
       // Stop ringtone when call is answered
       _ringtonePlayer.stop();
       DialogHelper.showSnackbarMessage(
@@ -62,9 +73,27 @@ class CallController extends GetxController {
 
     _zegoService.onCallEnded = () {
       isCallActive.value = false;
+      final duration = _callSeconds;
       _stopCallTimer();
       // Stop ringtone when call ends
       _ringtonePlayer.stop();
+      
+      // Registrar llamada en historial
+      if (_currentCallReceiver != null) {
+        _registerCall(
+          receiver: _currentCallReceiver!,
+          callStatus: _wasCallAnswered 
+              ? (_isIncomingCall ? CallStatus.incoming : CallStatus.outgoing)
+              : CallStatus.missed,
+          duration: duration,
+        );
+      }
+      
+      // Limpiar estado
+      _currentCallReceiver = null;
+      _isIncomingCall = false;
+      _wasCallAnswered = false;
+      
       DialogHelper.showSnackbarMessage(
         SnackMsgType.info,
         'Llamada terminada',
@@ -77,6 +106,21 @@ class CallController extends GetxController {
       _stopCallTimer();
       // Stop ringtone when call is rejected
       _ringtonePlayer.stop();
+      
+      // Registrar llamada perdida
+      if (_currentCallReceiver != null) {
+        _registerCall(
+          receiver: _currentCallReceiver!,
+          callStatus: CallStatus.missed,
+          duration: 0,
+        );
+      }
+      
+      // Limpiar estado
+      _currentCallReceiver = null;
+      _isIncomingCall = false;
+      _wasCallAnswered = false;
+      
       DialogHelper.showSnackbarMessage(
         SnackMsgType.info,
         'Llamada rechazada',
@@ -91,6 +135,11 @@ class CallController extends GetxController {
     required bool isVideo,
   }) async {
     try {
+      // Guardar información de la llamada
+      _currentCallReceiver = receiver;
+      _isIncomingCall = false;
+      _wasCallAnswered = false;
+      
       isVideoCall.value = isVideo;
       await _zegoService.startOutgoingCall(
         receiver: receiver,
@@ -117,10 +166,25 @@ class CallController extends GetxController {
     required String callerName,
   }) async {
     try {
+      // Obtener información del llamante
+      try {
+        final caller = await UserApi.getUser(callerId);
+        if (caller != null) {
+          _currentCallReceiver = caller;
+          _isIncomingCall = true;
+          _wasCallAnswered = false;
+        }
+      } catch (e) {
+        debugPrint('Error obteniendo información del llamante: $e');
+      }
+      
       isVideoCall.value = isVideo;
       
       // Start ringtone for incoming call
       _ringtonePlayer.playRingtone();
+      
+      // Iniciar timeout para llamada entrante (30 segundos)
+      _startIncomingCallTimeout();
       
       await _zegoService.handleIncomingCall(
         callerId: callerId,
@@ -135,15 +199,45 @@ class CallController extends GetxController {
       );
     }
   }
+  
+  /// Inicia el timeout para llamadas entrantes no contestadas
+  void _startIncomingCallTimeout() {
+    _incomingCallTimeoutTimer?.cancel();
+    _incomingCallTimeoutTimer = Timer(const Duration(seconds: 30), () {
+      // Si la llamada no fue contestada después de 30 segundos, registrarla como perdida
+      if (_isIncomingCall && !_wasCallAnswered && _currentCallReceiver != null) {
+        debugPrint('⏰ Timeout de llamada entrante - registrando como perdida');
+        _ringtonePlayer.stop();
+        _registerCall(
+          receiver: _currentCallReceiver!,
+          callStatus: CallStatus.missed,
+          duration: 0,
+        );
+        // Limpiar estado
+        _currentCallReceiver = null;
+        _isIncomingCall = false;
+        _wasCallAnswered = false;
+        Get.back();
+      }
+    });
+  }
+  
+  /// Cancela el timeout de llamada entrante
+  void _cancelIncomingCallTimeout() {
+    _incomingCallTimeoutTimer?.cancel();
+  }
 
   /// Contesta una llamada entrante
   Future<void> answerCall() async {
     try {
       // Stop ringtone when answering
       _ringtonePlayer.stop();
+      // Cancelar timeout ya que la llamada fue contestada
+      _cancelIncomingCallTimeout();
       
       await _zegoService.answerCall();
       isCallActive.value = true;
+      _wasCallAnswered = true;
       DialogHelper.showSnackbarMessage(
         SnackMsgType.success,
         'Llamada contestada',
@@ -161,6 +255,8 @@ class CallController extends GetxController {
     try {
       // Stop ringtone when rejecting
       _ringtonePlayer.stop();
+      // Cancelar timeout
+      _cancelIncomingCallTimeout();
       
       await _zegoService.rejectCall();
       DialogHelper.showSnackbarMessage(
@@ -181,9 +277,27 @@ class CallController extends GetxController {
       // Stop ringtone when ending call
       _ringtonePlayer.stop();
       
+      final duration = _callSeconds;
       await _zegoService.endCall();
       isCallActive.value = false;
       _stopCallTimer();
+      
+      // Registrar llamada en historial
+      if (_currentCallReceiver != null) {
+        _registerCall(
+          receiver: _currentCallReceiver!,
+          callStatus: _wasCallAnswered 
+              ? (_isIncomingCall ? CallStatus.incoming : CallStatus.outgoing)
+              : CallStatus.missed,
+          duration: duration,
+        );
+      }
+      
+      // Limpiar estado
+      _currentCallReceiver = null;
+      _isIncomingCall = false;
+      _wasCallAnswered = false;
+      
       DialogHelper.showSnackbarMessage(
         SnackMsgType.info,
         'Llamada terminada',
@@ -194,6 +308,25 @@ class CallController extends GetxController {
         SnackMsgType.error,
         'Error terminando llamada: $e',
       );
+    }
+  }
+  
+  /// Registrar llamada en historial
+  Future<void> _registerCall({
+    required User receiver,
+    required CallStatus callStatus,
+    required int duration,
+  }) async {
+    try {
+      await CallHistoryApi.addCallToHistory(
+        receiverId: receiver.userId,
+        callType: isVideoCall.value ? CallType.video : CallType.audio,
+        callStatus: callStatus,
+        duration: duration,
+      );
+      debugPrint('✅ Llamada registrada en historial: ${callStatus.name}, duración: ${duration}s');
+    } catch (e) {
+      debugPrint('❌ Error registrando llamada en historial: $e');
     }
   }
 

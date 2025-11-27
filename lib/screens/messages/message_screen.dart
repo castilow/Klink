@@ -33,6 +33,7 @@ import '../../components/audio_recorder_overlay.dart';
 import '../../components/voice_recording_bottom_bar.dart';
 import '../../components/voice_recording_mode.dart';
 import 'components/klink_ai_chat_view.dart';
+import 'package:chat_messenger/components/particle_disintegration_effect.dart';
 
 class MessageScreen extends StatelessWidget {
   const MessageScreen({
@@ -336,34 +337,51 @@ class MessageScreen extends StatelessWidget {
                           controller.toggleMessageSelection(message);
                         }
                       },
-                      child: Container(
-                        margin: controller.isMultiSelectMode.value
-                            ? const EdgeInsets.symmetric(vertical: 1.0)
-                            : null,
-                        child: AnimationConfiguration.staggeredList(
-                          position: index,
-                          duration: const Duration(milliseconds: 375),
-                          child: SlideAnimation(
-                            verticalOffset: 50.0,
-                            child: FadeInAnimation(
-                              child: isGroup && message.type == MessageType.groupUpdate
-                                  ? UpdateMessage(
-                                      group: group!,
-                                      message: message,
-                                    )
-                                  : BubbleMessage(
-                                      message: message,
-                                      user: user,
-                                      group: group,
-                                      controller: controller,
-                                      onTapProfile: message.isSender
-                                          ? null
-                                          : () => RoutesHelper.toProfileView(
-                                              senderUser, isGroup),
-                                      onReplyMessage: message.isDeleted
-                                          ? null
-                                          : () => controller.replyToMessage(message),
-                                    ),
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 400),
+                        transitionBuilder: (Widget child, Animation<double> animation) {
+                          return FadeTransition(
+                            opacity: animation,
+                            child: SizeTransition(
+                              sizeFactor: animation,
+                              axisAlignment: -1.0,
+                              child: child,
+                            ),
+                          );
+                        },
+                        child: Container(
+                          key: ValueKey(message.msgId), // Key único para AnimatedSwitcher
+                          margin: controller.isMultiSelectMode.value
+                              ? const EdgeInsets.symmetric(vertical: 1.0)
+                              : null,
+                          child: AnimationConfiguration.staggeredList(
+                            position: index,
+                            duration: const Duration(milliseconds: 375),
+                            child: SlideAnimation(
+                              verticalOffset: 50.0,
+                              child: FadeInAnimation(
+                                child: Obx(() => ParticleDisintegrationEffect(
+                                  trigger: controller.animatingMessageIds.contains(message.msgId),
+                                  child: isGroup && message.type == MessageType.groupUpdate
+                                      ? UpdateMessage(
+                                          group: group!,
+                                          message: message,
+                                        )
+                                      : BubbleMessage(
+                                          message: message,
+                                          user: user,
+                                          group: group,
+                                          controller: controller,
+                                          onTapProfile: message.isSender
+                                              ? null
+                                              : () => RoutesHelper.toProfileView(
+                                                  senderUser, isGroup),
+                                          onReplyMessage: message.isDeleted
+                                              ? null
+                                              : () => controller.replyToMessage(message),
+                                        ),
+                                )),
+                              ),
                             ),
                           ),
                         ),

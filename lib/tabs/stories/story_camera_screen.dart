@@ -72,7 +72,7 @@ class _StoryCameraState extends State<StoryCamera>
       final camera = widget.cameras.first;
       _cameraController = CameraController(
         camera,
-        ResolutionPreset.high,
+        ResolutionPreset.veryHigh,
         enableAudio: widget.isVideo,
       );
       
@@ -138,7 +138,7 @@ class _StoryCameraState extends State<StoryCamera>
       
       _cameraController = CameraController(
         camera,
-        ResolutionPreset.high,
+        ResolutionPreset.veryHigh,
         enableAudio: widget.isVideo,
       );
       

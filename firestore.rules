@@ -48,7 +48,13 @@ service cloud.firestore {
 
         // Messages in chats - allow access to chat participants
         match /Messages/{messageId} {
-          allow read, write: if isDirectChatParticipant(userId, chatId) || 
+          // Allow read and create/update for chat participants
+          allow read, create, update: if isDirectChatParticipant(userId, chatId) || 
+            (signedIn() && chatId == 'klink_ai_assistant' && request.auth.uid == userId);
+          
+          // Allow delete for chat participants (needed for temporary message cleanup)
+          // Participants can delete their own messages or messages in their chats
+          allow delete: if isDirectChatParticipant(userId, chatId) || 
             (signedIn() && chatId == 'klink_ai_assistant' && request.auth.uid == userId);
         }
       }
@@ -85,7 +91,11 @@ service cloud.firestore {
       
       // Group messages - allow group members to read/write
       match /Messages/{messageId} {
-        allow read, write: if isGroupMember();
+        // Allow read and create/update for group members
+        allow read, create, update: if isGroupMember();
+        
+        // Allow delete for group members (needed for temporary message cleanup)
+        allow delete: if isGroupMember();
       }
     }
 
@@ -93,6 +103,15 @@ service cloud.firestore {
     match /Stories/{storyId} {
       allow read: if signedIn();
       allow write: if signedIn() && request.auth.uid == storyId;
+    }
+    
+    // Videos collection (reels/shorts)
+    match /Videos/{videoId} {
+      // Todos los usuarios autenticados pueden leer videos
+      allow read: if signedIn();
+      // Solo el propietario puede crear/actualizar/eliminar sus propios videos
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if signedIn() && resource.data.userId == request.auth.uid;
     }
     
     // Reports collection - allow authenticated users to create reports

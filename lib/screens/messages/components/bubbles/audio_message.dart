@@ -138,6 +138,12 @@ class _AudioMessageState extends State<AudioMessage> {
 
   Future<void> _playAudio() async {
     try {
+      // Verificar si es viewOnce y ya fue visto
+      if (widget.message.viewOnce && widget.message.isViewedByCurrentUser) {
+        // No permitir reproducir si ya fue visto
+        return;
+      }
+      
       // Get the global MessageController
       final messageController = MessageController.globalInstance;
       
@@ -195,20 +201,60 @@ class _AudioMessageState extends State<AudioMessage> {
     final isCurrentlyPlaying = messageController.currentPlayingMessageId == widget.message.msgId;
     final globalIsPlaying = messageController.isPlaying && isCurrentlyPlaying;
     
-    return AudioPlayerWidget(
-      isPlaying: globalIsPlaying,
-      position: messageController.currentPosition,
-      duration: finalDuration,
-      onPlayPause: _isLoading ? () {} : _playAudio,
-      onSeek: (position) {
-        // TODO: Implementar seek functionality
-      },
-      isSender: widget.isSender,
-      timestamp: _formatTimestamp(widget.message.sentAt), // Obtener timestamp real del mensaje
-      isRead: widget.message.isRead, // Obtener estado real de lectura
-      showTimestamp: true,
-      transcription: "Mensaje de voz", // Mostrar "Mensaje de voz" como en la imagen
-      message: widget.message, // Pass the message to the widget
+    // Verificar si es viewOnce y ya fue visto
+    final isViewOnce = widget.message.viewOnce;
+    final isViewed = widget.message.isViewedByCurrentUser;
+    final canPlay = !isViewOnce || !isViewed;
+    
+    return Stack(
+      children: [
+        AudioPlayerWidget(
+          isPlaying: globalIsPlaying && canPlay,
+          position: messageController.currentPosition,
+          duration: finalDuration,
+          onPlayPause: (_isLoading || !canPlay) ? () {} : _playAudio,
+          onSeek: (position) {
+            // TODO: Implementar seek functionality
+          },
+          isSender: widget.isSender,
+          timestamp: _formatTimestamp(widget.message.sentAt),
+          isRead: widget.message.isRead,
+          showTimestamp: true,
+          transcription: "Mensaje de voz",
+          message: widget.message,
+        ),
+        // Overlay si es viewOnce y ya fue visto
+        if (isViewOnce && isViewed)
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Center(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.visibility_off,
+                      color: Colors.white,
+                      size: 16,
+                    ),
+                    SizedBox(width: 6),
+                    Text(
+                      'Ya escuchado',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 } 

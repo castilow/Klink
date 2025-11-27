@@ -9,6 +9,7 @@ import 'package:chat_messenger/services/network_service.dart';
 import 'package:chat_messenger/services/global_wallet_service.dart';
 import 'package:chat_messenger/services/zego_call_service.dart';
 import 'package:chat_messenger/services/firebase_messaging_service.dart';
+import 'package:chat_messenger/services/message_cleanup_service.dart';
 import 'package:chat_messenger/api/user_api.dart';
 import 'package:chat_messenger/firebase_options.dart';
 
@@ -106,6 +107,9 @@ class SplashController extends GetxController {
       } catch (e) {
         debugPrint('Error inicializando MobileAds: $e');
       }
+
+      // Iniciar servicio de limpieza de mensajes temporales
+      MessageCleanupService().start();
 
       // Autenticación y navegación
       await auth.checkUserAccount();

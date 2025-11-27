@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -153,7 +154,7 @@ class ZegoCallService extends GetxController {
                   ? ZegoUIKitPrebuiltCallConfig.oneOnOneVideoCall()
                   : ZegoUIKitPrebuiltCallConfig.oneOnOneVoiceCall();
           
-          // 🎨 DISEÑO ELEGANTE Y MODERNO
+          // 🎨 DISEÑO ELEGANTE Y MODERNO - WHATSAPP STYLE
           
           // Configurar botones de la barra inferior con orden elegante
           if (data.type == ZegoCallInvitationType.videoCall) {
@@ -174,9 +175,9 @@ class ZegoCallService extends GetxController {
           }
           
           // Configurar estilo de la barra de botones
-          config.bottomMenuBar.backgroundColor = Colors.black.withOpacity(0.8);
+          config.bottomMenuBar.backgroundColor = Colors.transparent;
           config.bottomMenuBar.height = 100;
-          config.bottomMenuBar.margin = const EdgeInsets.symmetric(horizontal: 20, vertical: 20);
+          config.bottomMenuBar.margin = const EdgeInsets.only(bottom: 30);
           
           // Configurar visibilidad
           config.bottomMenuBar.isVisible = true;
@@ -195,21 +196,19 @@ class ZegoCallService extends GetxController {
           
           // Configurar topbar con información elegante
           config.topMenuBar.isVisible = true;
-          config.topMenuBar.backgroundColor = Colors.black.withOpacity(0.6);
+          config.topMenuBar.backgroundColor = Colors.transparent;
           config.topMenuBar.height = 80;
           
-          // Configurar fondo elegante para llamadas de voz
+          // Configurar fondo elegante para llamadas de voz (Blurred style)
           if (data.type == ZegoCallInvitationType.voiceCall) {
             config.background = Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.blue.shade900,
-                    Colors.purple.shade900,
-                    Colors.black,
-                  ],
+              decoration: const BoxDecoration(
+                color: Color(0xFF0F1C24), // Dark background
+              ),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                child: Container(
+                  color: Colors.black.withOpacity(0.2),
                 ),
               ),
             );
@@ -218,33 +217,30 @@ class ZegoCallService extends GetxController {
           // Configurar estilo del avatar para llamadas de voz
           config.avatarBuilder = (context, size, user, extraInfo) {
             return Container(
-              width: size.width,
-              height: size.height,
+              width: size.width * 0.4, // Smaller avatar
+              height: size.width * 0.4,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.blue.shade400,
-                    Colors.purple.shade400,
-                  ],
-                ),
+                color: Colors.grey.shade800,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.white.withOpacity(0.3),
+                    color: Colors.black.withOpacity(0.3),
                     blurRadius: 20,
                     spreadRadius: 5,
                   ),
                 ],
               ),
-              child: Center(
-                child: Text(
-                  user?.name?.isNotEmpty == true 
-                      ? user!.name!.substring(0, 1).toUpperCase()
-                      : '?',
-                  style: TextStyle(
-                    fontSize: size.width * 0.4,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+              child: ClipOval(
+                child: Center(
+                  child: Text(
+                    user?.name?.isNotEmpty == true 
+                        ? user!.name!.substring(0, 1).toUpperCase()
+                        : '?',
+                    style: TextStyle(
+                      fontSize: size.width * 0.15,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),
@@ -262,9 +258,22 @@ class ZegoCallService extends GetxController {
           onCallEnd: (event, defaultAction) {
             if (kDebugMode) {
               debugPrint('📞 Llamada terminada');
+              debugPrint('📞 Razón: ${event.reason}');
             }
+            
+            // Verificar si la llamada fue cancelada o expirada
+            // Las razones comunes incluyen: canceled, timeout, rejected
+            final reason = event.reason?.toString().toLowerCase() ?? '';
+            if (reason.contains('cancel') || reason.contains('timeout') || reason.contains('reject')) {
+              if (kDebugMode) {
+                debugPrint('📞 Llamada cancelada/rechazada/expirada');
+              }
+              onCallRejected?.call();
+            } else {
+              onCallEnded?.call();
+            }
+            
             _onCallEnded();
-            onCallEnded?.call();
             defaultAction.call();
           },
           onError: (error) {

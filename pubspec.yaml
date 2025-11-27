@@ -65,6 +65,7 @@ dependencies:
   # ──────────────────── Análisis Real de Audio ────────────────────
   just_audio:           ^0.10.5
   audio_session:        ^0.2.2
+  youtube_explode_dart: ^2.0.0  # Para extraer audio de YouTube
   
   # ──────────────────── Transcripción de Audio ────────────────────
   speech_to_text:       ^7.2.0

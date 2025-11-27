@@ -105,7 +105,7 @@ class _MusicSearchScreenState extends State<MusicSearchScreen> {
     );
   }
 
-  void _selectMusic(MusicTrack track, {bool isCurrentlyPlaying = false}) {
+  void _selectMusic(MusicTrack track, {bool isCurrentlyPlaying = false}) async {
     debugPrint('✅ [MUSIC_SEARCH] Canción seleccionada: ${track.name} - ${track.artist}');
     debugPrint('🎵 [MUSIC_SEARCH] Preview URL: ${track.previewUrl ?? "No disponible"}');
     
@@ -116,13 +116,19 @@ class _MusicSearchScreenState extends State<MusicSearchScreen> {
       _currentlyPlayingId = null;
     }
     
-    // Abrir pantalla de selección de música
-    Get.to(
+    // Abrir pantalla de selección de música y esperar el resultado
+    final selectedMusic = await Get.to<StoryMusic>(
       () => MusicSelectionScreen(
         track: track,
         onMusicSelected: widget.onMusicSelected,
       ),
     );
+    
+    // Si se seleccionó música, retornar el resultado
+    if (selectedMusic != null) {
+      widget.onMusicSelected?.call(selectedMusic);
+      Get.back(result: selectedMusic);
+    }
   }
 
   Widget _buildSourceChip(String source, String label, IconData icon) {

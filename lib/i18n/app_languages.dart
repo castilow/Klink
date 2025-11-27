@@ -7,6 +7,11 @@ import 'lang/de.dart';
 import 'lang/it.dart';
 import 'lang/pt.dart';
 import 'lang/ar.dart';
+import 'lang/ru.dart';
+import 'lang/zh.dart';
+import 'lang/id.dart';
+import 'lang/ja.dart';
+import 'lang/hi.dart';
 
 class AppLanguages extends Translations {
 
@@ -21,6 +26,11 @@ class AppLanguages extends Translations {
       "it": italian,
       "pt": portuguese,
       "ar": arabic,
+      "ru": russian,
+      "zh": chinese,
+      "id": indonesian,
+      "ja": japanese,
+      "hi": hindi,
     };
   }
 }

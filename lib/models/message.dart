@@ -34,6 +34,11 @@ class Message {
   DateTime? translatedAt;
   // This reference help us update this message
   DocumentReference<Map<String, dynamic>>? docRef;
+  // Temporary message fields
+  bool isTemporary; // Si el mensaje es temporal (24 horas)
+  DateTime? expiresAt; // Fecha de expiración del mensaje
+  bool viewOnce; // Si el mensaje/audio solo se puede ver/escuchar una vez
+  List<String>? viewedBy; // Lista de usuarios que ya vieron/escucharon el mensaje
 
   Message({
     required this.msgId,
@@ -56,9 +61,26 @@ class Message {
     this.translations,
     this.detectedLanguage,
     this.translatedAt,
+    this.isTemporary = false,
+    this.expiresAt,
+    this.viewOnce = false,
+    this.viewedBy,
   });
 
   bool get isSender => senderId == AuthController.instance.currentUser.userId;
+  
+  // Verificar si el mensaje está expirado
+  bool get isExpired {
+    if (!isTemporary || expiresAt == null) return false;
+    return expiresAt!.isBefore(DateTime.now());
+  }
+  
+  // Verificar si el mensaje viewOnce ya fue visto por el usuario actual
+  bool get isViewedByCurrentUser {
+    if (!viewOnce || viewedBy == null) return false;
+    final currentUserId = AuthController.instance.currentUser.userId;
+    return viewedBy!.contains(currentUserId);
+  }
 
   // Get total reaction count
   int get totalReactions {
@@ -186,6 +208,12 @@ class Message {
       }
     }
 
+    // Parse viewedBy list
+    List<String>? viewedBy;
+    if (data['viewedBy'] != null && data['viewedBy'] is List) {
+      viewedBy = List<String>.from(data['viewedBy']);
+    }
+
     return Message(
       docRef: docRef,
       msgId: messageId,
@@ -209,6 +237,10 @@ class Message {
       translations: translations,
       detectedLanguage: data['detectedLanguage'],
       translatedAt: data['translatedAt']?.toDate() as DateTime?,
+      isTemporary: data['isTemporary'] ?? false,
+      expiresAt: data['expiresAt']?.toDate() as DateTime?,
+      viewOnce: data['viewOnce'] ?? false,
+      viewedBy: viewedBy,
     );
   }
 
@@ -249,6 +281,10 @@ class Message {
       'translations': translationsMap,
       'detectedLanguage': detectedLanguage,
       'translatedAt': translatedAt,
+      'isTemporary': isTemporary,
+      'expiresAt': expiresAt != null ? Timestamp.fromDate(expiresAt!) : null,
+      'viewOnce': viewOnce,
+      'viewedBy': viewedBy,
     };
   }
 

@@ -31,9 +31,31 @@ class CallHistoryCard extends StatelessWidget {
           child: Row(
             children: [
               // Profile photo
-              CachedCircleAvatar(
-                radius: 30,
-                imageUrl: call.receiver.photoUrl,
+              Stack(
+                children: [
+                  CachedCircleAvatar(
+                    radius: 30,
+                    imageUrl: call.receiver.photoUrl,
+                  ),
+                  // Indicador de llamada perdida
+                  if (call.callStatus == CallStatus.missed && call.isNew)
+                    Positioned(
+                      right: 0,
+                      top: 0,
+                      child: Container(
+                        width: 12,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: errorColor,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Theme.of(context).scaffoldBackgroundColor,
+                            width: 2,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -43,7 +65,14 @@ class CallHistoryCard extends StatelessWidget {
                     // Profile name
                     Text(
                       call.receiver.fullname,
-                      style: Theme.of(context).textTheme.titleLarge,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: call.callStatus == CallStatus.missed && call.isNew
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                        color: call.callStatus == CallStatus.missed && call.isNew
+                            ? errorColor
+                            : null,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     // Other info

@@ -92,6 +92,20 @@ abstract class CallHistoryApi {
           .doc()
           .id;
 
+      // Determinar el estado de la llamada
+      String callStatusStr = 'outgoing';
+      bool isNew = false;
+      
+      if (callStatus == CallStatus.incoming) {
+        callStatusStr = 'incoming';
+      } else if (callStatus == CallStatus.missed) {
+        callStatusStr = 'missed';
+        isNew = true; // Las llamadas perdidas se marcan como nuevas
+      } else {
+        callStatusStr = 'outgoing';
+      }
+
+      // Guardar en el historial del usuario actual
       await _firestore
           .collection('Users/${currentUser.userId}/CallHistory')
           .doc(callId)
@@ -99,17 +113,36 @@ abstract class CallHistoryApi {
         'callId': callId,
         'receiverId': receiverId,
         'callType': callType == CallType.video ? 'video' : 'audio',
-        'callStatus': callStatus == CallStatus.incoming
-            ? 'incoming'
-            : callStatus == CallStatus.missed
-                ? 'missed'
-                : 'outgoing',
+        'callStatus': callStatusStr,
         'createdAt': FieldValue.serverTimestamp(),
         'duration': duration,
-        'isNew': false,
+        'isNew': isNew,
       });
+      
+      // También guardar en el historial del receptor (si es llamada entrante o perdida)
+      if (callStatus == CallStatus.incoming || callStatus == CallStatus.missed) {
+        final String receiverCallId = _firestore
+            .collection('Users/$receiverId/CallHistory')
+            .doc()
+            .id;
+            
+        await _firestore
+            .collection('Users/$receiverId/CallHistory')
+            .doc(receiverCallId)
+            .set({
+          'callId': receiverCallId,
+          'receiverId': currentUser.userId,
+          'callType': callType == CallType.video ? 'video' : 'audio',
+          'callStatus': callStatus == CallStatus.missed ? 'missed' : 'outgoing',
+          'createdAt': FieldValue.serverTimestamp(),
+          'duration': duration,
+          'isNew': callStatus == CallStatus.missed, // Solo nuevas si es perdida
+        });
+      }
+      
+      debugPrint('✅ Llamada registrada: $callStatusStr, duración: ${duration}s');
     } catch (e) {
-      debugPrint('Error adding call to history: $e');
+      debugPrint('❌ Error adding call to history: $e');
     }
   }
 }

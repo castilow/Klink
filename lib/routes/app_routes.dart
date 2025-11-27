@@ -44,4 +44,5 @@ abstract class AppRoutes {
   static const String appearance = '/appearance';
   static const String bubbleColorPicker = '/bubble-color-picker';
   static const String textSize = '/text-size';
+  static const String chatSettings = '/chat-settings';
 }

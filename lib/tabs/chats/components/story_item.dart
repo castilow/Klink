@@ -42,14 +42,21 @@ class StoryItem extends StatelessWidget {
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [
-                          Color(0xFFF9CE34),
-                          Color(0xFFEE2A7B),
-                          Color(0xFF6228D7),
+                          Color(0xFF00E5FF), // Cyan
+                          Color(0xFF2979FF), // Blue
+                          Color(0xFF6228D7), // Purple
                         ],
                       ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF2979FF).withOpacity(0.3),
+                          blurRadius: 8,
+                          spreadRadius: 1,
+                        ),
+                      ],
                     ),
                   ),
-                // White/Black border gap
+                // Border gap
                 Container(
                   width: 64,
                   height: 64,
@@ -63,16 +70,16 @@ class StoryItem extends StatelessWidget {
                   imageUrl: imageUrl,
                   radius: 29,
                 ),
-                // Add button for "Me"
-                if (isMe)
+                // Add button for "Me" (only if no story)
+                if (isMe && !hasStory)
                   Positioned(
                     right: 0,
                     bottom: 0,
                     child: Container(
-                      width: 20,
-                      height: 20,
+                      width: 22,
+                      height: 22,
                       decoration: BoxDecoration(
-                        color: primaryColor,
+                        color: const Color(0xFF00E5FF),
                         shape: BoxShape.circle,
                         border: Border.all(
                           color: Theme.of(context).scaffoldBackgroundColor,
@@ -81,7 +88,7 @@ class StoryItem extends StatelessWidget {
                       ),
                       child: const Icon(
                         Icons.add,
-                        size: 14,
+                        size: 16,
                         color: Colors.white,
                       ),
                     ),

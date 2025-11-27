@@ -81,7 +81,11 @@ abstract class StoryApi {
       event,
     ) {
       return event.docs
-          .map((e) => Story.fromMap(user: user, data: e.data()))
+          .map((e) {
+            final data = e.data();
+            data['id'] = e.id; // Asegurar que el ID del documento esté en los datos
+            return Story.fromMap(user: user, data: data);
+          })
           .toList();
     });
   }
@@ -134,11 +138,13 @@ abstract class StoryApi {
         debugPrint('📖 [STORY_API] Creando nueva historia de texto');
         // Create new story
         final Story story = Story(
+          id: currentUser.userId,
+          userId: currentUser.userId,
           type: StoryType.text,
           texts: [storyText],
           bestFriendsOnly: bestFriendsOnly ?? [],
           isVipOnly: isVipOnly,
-          updatedAt: null,
+          updatedAt: DateTime.now(),
         );
         await storyDoc.reference.set(story.toMap());
         debugPrint('✅ [STORY_API] Nueva historia de texto creada exitosamente');
@@ -214,11 +220,13 @@ abstract class StoryApi {
         debugPrint('🖼️ [STORY_API] Creando nueva historia de imagen');
         // Create new story
         final Story story = Story(
+          id: currentUser.userId,
+          userId: currentUser.userId,
           type: StoryType.image,
           images: [storyImage],
           bestFriendsOnly: bestFriendsOnly ?? [],
           isVipOnly: isVipOnly,
-          updatedAt: null,
+          updatedAt: DateTime.now(),
         );
         await storyDoc.reference.set(story.toMap());
         debugPrint('✅ [STORY_API] Nueva historia de imagen creada exitosamente');
@@ -295,11 +303,13 @@ abstract class StoryApi {
         debugPrint('🎥 [STORY_API] Creando nueva historia de video');
         // Create new story
         final Story story = Story(
+          id: currentUser.userId,
+          userId: currentUser.userId,
           type: StoryType.video,
           videos: [storyVideo],
           bestFriendsOnly: bestFriendsOnly ?? [],
           isVipOnly: isVipOnly,
-          updatedAt: null,
+          updatedAt: DateTime.now(),
         );
         await storyDoc.reference.set(story.toMap());
         debugPrint('✅ [STORY_API] Nueva historia de video creada exitosamente');
@@ -494,6 +504,20 @@ abstract class StoryApi {
   // Method to delete entire story
   static Future<void> deleteStory({required Story story}) async {
     try {
+      // Verificar que el usuario sea el dueño de la historia
+      final currentUserId = AuthController.instance.currentUser.userId;
+      if (story.userId != currentUserId) {
+        debugPrint('❌ [STORY_API] Usuario no autorizado para eliminar esta historia');
+        DialogHelper.showSnackbarMessage(
+          SnackMsgType.error,
+          'No tienes permiso para eliminar esta historia',
+        );
+        return;
+      }
+
+      debugPrint('🗑️ [STORY_API] Eliminando historia: ${story.id}');
+      debugPrint('🗑️ [STORY_API] Usuario: $currentUserId, Dueño: ${story.userId}');
+
       // Delete all files from storage
       for (final image in story.images) {
         await _deleteFileFromStorage(image.imageUrl);
@@ -504,10 +528,9 @@ abstract class StoryApi {
       }
 
       // Delete story document from Firestore
-      await FirebaseFirestore.instance
-          .collection('stories')
-          .doc(story.id)
-          .delete();
+      await storiesRef.doc(story.id).delete();
+
+      debugPrint('✅ [STORY_API] Historia eliminada exitosamente');
 
       // Refresh stories list
       await _refreshStoriesList();

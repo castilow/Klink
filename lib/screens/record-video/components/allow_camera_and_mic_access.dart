@@ -24,7 +24,7 @@ class RecordVideoController extends GetxController {
     final cameras = await availableCameras();
     cameraController = CameraController(
       cameras.first,
-      ResolutionPreset.high,
+      ResolutionPreset.veryHigh,
       enableAudio: true,
     );
     await cameraController.initialize();

@@ -456,10 +456,36 @@ abstract class MessageApi {
         .orderBy('sentAt', descending: true)
         .snapshots()
         .map((event) {
-      return event.docs.map((doc) {
-        return Message.fromMap(
-            data: doc.data(), docRef: doc.reference, isGroup: false);
-      }).toList();
+      final now = DateTime.now();
+      return event.docs
+          .map((doc) {
+            return Message.fromMap(
+                data: doc.data(), docRef: doc.reference, isGroup: false);
+          })
+          .where((message) {
+            // Filtrar mensajes expirados
+            if (message.isTemporary && message.expiresAt != null) {
+              if (message.expiresAt!.isBefore(now) || message.expiresAt!.difference(now).inSeconds <= 0) {
+                // Eliminar mensaje expirado de Firestore en background (ambos usuarios)
+                message.docRef?.delete().catchError((e) {
+                  debugPrint('❌ Error eliminando mensaje expirado del usuario actual: $e');
+                });
+                
+                // También eliminar del otro usuario
+                _getCollectionRef(userId1: userId, userId2: currentUser.userId)
+                    .doc(message.msgId)
+                    .delete()
+                    .catchError((e) {
+                  debugPrint('❌ Error eliminando mensaje expirado del otro usuario: $e');
+                });
+                
+                debugPrint('🗑️ Mensaje temporal expirado eliminado de ambos usuarios: ${message.msgId}');
+                return false;
+              }
+            }
+            return true;
+          })
+          .toList();
     });
   }
 
@@ -471,10 +497,26 @@ abstract class MessageApi {
         .orderBy('sentAt', descending: true)
         .snapshots()
         .map((event) {
-      return event.docs.map((doc) {
-        return Message.fromMap(
-            data: doc.data(), docRef: doc.reference, isGroup: true);
-      }).toList();
+      final now = DateTime.now();
+      return event.docs
+          .map((doc) {
+            return Message.fromMap(
+                data: doc.data(), docRef: doc.reference, isGroup: true);
+          })
+          .where((message) {
+            // Filtrar mensajes expirados
+            if (message.isTemporary && message.expiresAt != null) {
+              if (message.expiresAt!.isBefore(now)) {
+                // Eliminar mensaje expirado de Firestore en background
+                message.docRef?.delete().catchError((e) {
+                  debugPrint('Error eliminando mensaje expirado: $e');
+                });
+                return false;
+              }
+            }
+            return true;
+          })
+          .toList();
     });
   }
 

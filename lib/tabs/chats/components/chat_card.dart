@@ -98,10 +98,11 @@ class ChatCard extends StatelessWidget {
               final User receiver = updatedUser ?? user;
 
               // Check for active story
-              final StoryController storyController = Get.find();
-              // Use Obx or just check value since this is inside a StreamBuilder which rebuilds on user updates
-              // Ideally we should listen to stories changes too, but for now simple check:
-              final bool hasStory = storyController.stories.any((s) => s.userId == receiver.userId);
+              bool hasStory = false;
+              if (Get.isRegistered<StoryController>()) {
+                final StoryController storyController = Get.find();
+                hasStory = storyController.stories.any((s) => s.userId == receiver.userId);
+              }
 
               return Row(
                 children: [

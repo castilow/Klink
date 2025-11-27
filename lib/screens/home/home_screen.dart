@@ -5,7 +5,6 @@ import 'package:chat_messenger/components/badge_indicator.dart';
 import 'package:chat_messenger/controllers/preferences_controller.dart';
 import 'package:chat_messenger/controllers/report_controller.dart';
 import 'package:chat_messenger/controllers/global_search_controller.dart';
-import 'package:chat_messenger/tabs/stories/controller/story_controller.dart';
 import 'package:chat_messenger/theme/app_theme.dart';
 import 'package:chat_messenger/controllers/auth_controller.dart';
 import 'package:chat_messenger/helpers/ads/ads_helper.dart';
@@ -178,7 +177,6 @@ class _HomeScreenState extends State<HomeScreen>
     // Get Controllers
     final HomeController homeController = Get.find();
     final ChatController chatController = Get.find();
-    final StoryController storyController = Get.find();
 
     // Others
     final bool isDarkMode = AppTheme.of(context).isDarkMode;
@@ -191,8 +189,9 @@ class _HomeScreenState extends State<HomeScreen>
       final User currentUer = AuthController.instance.currentUser;
 
       return Scaffold(
+        extendBody: true,
         extendBodyBehindAppBar: true,
-        appBar: pageIndex == 4 
+        appBar: (pageIndex == 4 || pageIndex == 2) 
           ? null 
           : PreferredSize(
           preferredSize: const Size.fromHeight(80),
@@ -441,19 +440,13 @@ class _HomeScreenState extends State<HomeScreen>
                             pageIndex == 1 ? IconlyBold.user2 : IconlyLight.user2,
                           ),
                         ),
-                        // Stories
+                        // Videos
                         BottomNavigationBarItem(
                           label: '',
-                          icon: Stack(
-                            children: [
-                              Image.asset(
-                                'assets/images/origina.gif',
-                                width: 45,
-                                height: 45,
-                              ),
-                              if (storyController.hasUnviewedStories)
-                                const Positioned(right: 0, child: Badge(smallSize: 8)),
-                            ],
+                          icon: Image.asset(
+                            'assets/images/origina.gif',
+                            width: 45,
+                            height: 45,
                           ),
                         ),
                         // Calls
