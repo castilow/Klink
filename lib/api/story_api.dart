@@ -121,18 +121,30 @@ abstract class StoryApi {
 
       // Check result
       if (storyDoc.exists) {
-        final oldTexts = List<Map<String, dynamic>>.from(storyDoc['texts']);
-        debugPrint('📖 [STORY_API] Actualizando historia existente (${oldTexts.length} textos anteriores)');
+        final data = storyDoc.data()!;
+        final oldTexts = List<Map<String, dynamic>>.from(data['texts'] ?? []);
+        final oldImages = List<Map<String, dynamic>>.from(data['images'] ?? []);
+        final oldVideos = List<Map<String, dynamic>>.from(data['videos'] ?? []);
+        debugPrint('📖 [STORY_API] Actualizando historia existente (${oldTexts.length} textos, ${oldImages.length} imágenes, ${oldVideos.length} videos)');
 
-        // Update existing story
-        await storyDoc.reference.update(
-          Story.toUpdateMap(
-            type: StoryType.text,
-            values: [...oldTexts, storyText.toMap()],
-            bestFriendsOnly: bestFriendsOnly,
-            isVipOnly: isVipOnly,
-          ),
-        );
+        // Update existing story - preservar todos los items existentes
+        final updateData = {
+          'texts': [...oldTexts, storyText.toMap()],
+          'images': oldImages, // Preservar imágenes existentes
+          'videos': oldVideos, // Preservar videos existentes
+          'type': StoryType.text.name,
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
+        
+        // Actualizar configuración VIP si se proporciona
+        if (bestFriendsOnly != null) {
+          updateData['bestFriendsOnly'] = bestFriendsOnly;
+        }
+        if (isVipOnly != null) {
+          updateData['isVipOnly'] = isVipOnly;
+        }
+        
+        await storyDoc.reference.update(updateData);
         debugPrint('✅ [STORY_API] Historia de texto actualizada exitosamente');
       } else {
         debugPrint('📖 [STORY_API] Creando nueva historia de texto');
@@ -149,12 +161,12 @@ abstract class StoryApi {
         await storyDoc.reference.set(story.toMap());
         debugPrint('✅ [STORY_API] Nueva historia de texto creada exitosamente');
       }
-      // Close the page
-      Get.back();
+      // NO cerrar la pantalla automáticamente - permitir agregar más estados
       // Show message
       DialogHelper.showSnackbarMessage(
         SnackMsgType.success,
-        'story_created_successfully'.tr,
+        'Estado publicado. Puedes agregar más estados.',
+        duration: 2,
       );
     } catch (e) {
       debugPrint('❌ [STORY_API] Error al subir historia de texto: $e');
@@ -203,18 +215,30 @@ abstract class StoryApi {
 
       // Check result
       if (storyDoc.exists) {
-        final oldImages = List<Map<String, dynamic>>.from(storyDoc['images']);
-        debugPrint('🖼️ [STORY_API] Actualizando historia existente (${oldImages.length} imágenes anteriores)');
+        final data = storyDoc.data()!;
+        final oldTexts = List<Map<String, dynamic>>.from(data['texts'] ?? []);
+        final oldImages = List<Map<String, dynamic>>.from(data['images'] ?? []);
+        final oldVideos = List<Map<String, dynamic>>.from(data['videos'] ?? []);
+        debugPrint('🖼️ [STORY_API] Actualizando historia existente (${oldTexts.length} textos, ${oldImages.length} imágenes, ${oldVideos.length} videos)');
 
-        // Update existing story
-        await storyDoc.reference.update(
-          Story.toUpdateMap(
-            type: StoryType.image,
-            values: [...oldImages, storyImage.toMap()],
-            bestFriendsOnly: bestFriendsOnly,
-            isVipOnly: isVipOnly,
-          ),
-        );
+        // Update existing story - preservar todos los items existentes
+        final updateData = {
+          'texts': oldTexts, // Preservar textos existentes
+          'images': [...oldImages, storyImage.toMap()],
+          'videos': oldVideos, // Preservar videos existentes
+          'type': StoryType.image.name,
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
+        
+        // Actualizar configuración VIP si se proporciona
+        if (bestFriendsOnly != null) {
+          updateData['bestFriendsOnly'] = bestFriendsOnly;
+        }
+        if (isVipOnly != null) {
+          updateData['isVipOnly'] = isVipOnly;
+        }
+        
+        await storyDoc.reference.update(updateData);
         debugPrint('✅ [STORY_API] Historia de imagen actualizada exitosamente');
       } else {
         debugPrint('🖼️ [STORY_API] Creando nueva historia de imagen');
@@ -232,9 +256,11 @@ abstract class StoryApi {
         debugPrint('✅ [STORY_API] Nueva historia de imagen creada exitosamente');
       }
       DialogHelper.closeDialog();
+      // NO cerrar la pantalla automáticamente - permitir agregar más estados
       DialogHelper.showSnackbarMessage(
         SnackMsgType.success,
-        'story_created_successfully'.tr,
+        'Estado publicado. Puedes agregar más estados.',
+        duration: 2,
       );
     } catch (e) {
       debugPrint('❌ [STORY_API] Error al subir historia de imagen: $e');
@@ -286,18 +312,30 @@ abstract class StoryApi {
 
       // Check result
       if (storyDoc.exists) {
-        final oldVideos = List<Map<String, dynamic>>.from(storyDoc['videos']);
-        debugPrint('🎥 [STORY_API] Actualizando historia existente (${oldVideos.length} videos anteriores)');
+        final data = storyDoc.data()!;
+        final oldTexts = List<Map<String, dynamic>>.from(data['texts'] ?? []);
+        final oldImages = List<Map<String, dynamic>>.from(data['images'] ?? []);
+        final oldVideos = List<Map<String, dynamic>>.from(data['videos'] ?? []);
+        debugPrint('🎥 [STORY_API] Actualizando historia existente (${oldTexts.length} textos, ${oldImages.length} imágenes, ${oldVideos.length} videos)');
 
-        // Update existing story
-        await storyDoc.reference.update(
-          Story.toUpdateMap(
-            type: StoryType.video,
-            values: [...oldVideos, storyVideo.toMap()],
-            bestFriendsOnly: bestFriendsOnly,
-            isVipOnly: isVipOnly,
-          ),
-        );
+        // Update existing story - preservar todos los items existentes
+        final updateData = {
+          'texts': oldTexts, // Preservar textos existentes
+          'images': oldImages, // Preservar imágenes existentes
+          'videos': [...oldVideos, storyVideo.toMap()],
+          'type': StoryType.video.name,
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
+        
+        // Actualizar configuración VIP si se proporciona
+        if (bestFriendsOnly != null) {
+          updateData['bestFriendsOnly'] = bestFriendsOnly;
+        }
+        if (isVipOnly != null) {
+          updateData['isVipOnly'] = isVipOnly;
+        }
+        
+        await storyDoc.reference.update(updateData);
         debugPrint('✅ [STORY_API] Historia de video actualizada exitosamente');
       } else {
         debugPrint('🎥 [STORY_API] Creando nueva historia de video');
@@ -315,9 +353,11 @@ abstract class StoryApi {
         debugPrint('✅ [STORY_API] Nueva historia de video creada exitosamente');
       }
       DialogHelper.closeDialog();
+      // NO cerrar la pantalla automáticamente - permitir agregar más estados
       DialogHelper.showSnackbarMessage(
         SnackMsgType.success,
-        'story_created_successfully'.tr,
+        'Estado publicado. Puedes agregar más estados.',
+        duration: 2,
       );
     } catch (e) {
       debugPrint('❌ [STORY_API] Error al subir historia de video: $e');

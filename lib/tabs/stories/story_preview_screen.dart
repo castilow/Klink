@@ -5,6 +5,7 @@ import 'package:chat_messenger/api/story_api.dart';
 import 'package:chat_messenger/models/story/submodels/story_music.dart';
 import 'package:chat_messenger/tabs/stories/components/music_search_screen.dart';
 import 'package:chat_messenger/tabs/stories/components/story_settings_bottom_sheet.dart';
+import 'package:chat_messenger/routes/app_routes.dart';
 
 class StoryPreviewScreen extends StatefulWidget {
   final File file;
@@ -37,6 +38,64 @@ class _StoryPreviewScreenState extends State<StoryPreviewScreen> {
     }
   }
 
+  void _showAddMoreOptions() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: const Text(
+          '✅ Estado publicado',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: const Text(
+          'Tu estado se ha publicado correctamente. ¿Quieres agregar más estados?',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context); // Cerrar diálogo
+              // Cerrar todas las pantallas de creación de historias
+              Get.back(); // Cerrar preview
+              // Si venimos de la cámara, cerrar también la cámara
+              if (Navigator.canPop(context)) {
+                Get.back();
+              }
+            },
+            child: const Text(
+              'Finalizar',
+              style: TextStyle(color: Colors.white70, fontSize: 16),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context); // Cerrar diálogo
+              // Cerrar preview y volver a la pantalla de historias para agregar más
+              Get.back(); // Cerrar preview
+              // Si venimos de la cámara, cerrar también la cámara
+              if (Navigator.canPop(context)) {
+                Get.back();
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: const Text(
+              'Agregar más',
+              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _uploadStory() async {
     setState(() {
       isUploading = true;
@@ -58,8 +117,9 @@ class _StoryPreviewScreenState extends State<StoryPreviewScreen> {
           isVipOnly: isVipOnly,
         );
       }
-      Get.back(); // Cerrar preview
-      Get.back(); // Cerrar cámara
+      // NO cerrar automáticamente - permitir agregar más estados
+      // Mostrar opción para agregar más o cerrar
+      _showAddMoreOptions();
     } catch (e) {
       Get.snackbar(
         'Error',
@@ -227,6 +287,13 @@ class _StoryPreviewScreenState extends State<StoryPreviewScreen> {
     );
   }
 }
+
+
+
+
+
+
+
 
 
 

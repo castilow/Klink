@@ -98,10 +98,10 @@ class StoryViewController extends GetxController {
     super.onClose();
   }
 
-  // Load all story items
+  // Load all story items (solo items válidos, no expirados)
   void _loadStoryItems() {
-    // <-- Get story texts -->
-    for (final txt.StoryText storyText in story.texts) {
+    // <-- Get valid story texts -->
+    for (final txt.StoryText storyText in story.validTexts) {
       storyItems.add(
         StoryItem.text(
           title: storyText.text,
@@ -112,8 +112,8 @@ class StoryViewController extends GetxController {
       items.add(storyText);
     }
 
-    // <-- Get story images -->
-    for (final storyImage in story.images) {
+    // <-- Get valid story images -->
+    for (final storyImage in story.validImages) {
       storyItems.add(
         StoryItem.pageImage(
             url: storyImage.imageUrl, controller: storyController),
@@ -121,8 +121,8 @@ class StoryViewController extends GetxController {
       items.add(storyImage);
     }
 
-    // <-- Get story videos -->
-    for (final storyVideo in story.videos) {
+    // <-- Get valid story videos -->
+    for (final storyVideo in story.validVideos) {
       storyItems.add(
         StoryItem.pageVideo(storyVideo.videoUrl, controller: storyController),
       );

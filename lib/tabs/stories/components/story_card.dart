@@ -243,73 +243,94 @@ class _StoryCardState extends State<StoryCard> with TickerProviderStateMixin {
   }
 
   Widget _buildStoryContent() {
-    switch (widget.story.type) {
-      case StoryType.text:
-        final StoryText storyText = widget.story.texts.last;
-        return Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                storyText.bgColor,
-                storyText.bgColor.withValues(alpha: 0.8),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-          child: Container(
-            padding: EdgeInsets.all(24),
-            child: Center(
-              child: Text(
-                storyText.text,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  height: 1.4,
-                  shadows: [
-                    Shadow(
-                      color: Colors.black.withValues(alpha: 0.3),
-                      offset: const Offset(0, 1),
-                      blurRadius: 2,
-                    ),
-                  ],
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 6,
-                overflow: TextOverflow.ellipsis,
+    // Usar items válidos (no expirados) y determinar qué mostrar
+    final validTexts = widget.story.validTexts;
+    final validImages = widget.story.validImages;
+    final validVideos = widget.story.validVideos;
+    
+    // Prioridad: Video > Imagen > Texto (mostrar el más reciente)
+    if (validVideos.isNotEmpty) {
+      final StoryVideo storyVideo = validVideos.last;
+      return Stack(
+        children: [
+          CachedCardImage(storyVideo.thumbnailUrl),
+          Center(
+            child: Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.7),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                IconlyBold.play,
+                color: Colors.white,
+                size: 20,
               ),
             ),
           ),
-        );
-
-      case StoryType.image:
-        final StoryImage storyImage = widget.story.images.last;
-        return CachedCardImage(storyImage.imageUrl);
-
-      case StoryType.video:
-        final StoryVideo storyVideo = widget.story.videos.last;
-        return Stack(
-          children: [
-            CachedCardImage(storyVideo.thumbnailUrl),
-            Center(
-              child: Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.7),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  IconlyBold.play,
-                  color: Colors.white,
-                  size: 20,
-                ),
-              ),
-            ),
-          ],
-        );
+        ],
+      );
     }
+    
+    // Si hay imágenes válidas, mostrar la más reciente
+    if (validImages.isNotEmpty) {
+      final StoryImage storyImage = validImages.last;
+      return CachedCardImage(storyImage.imageUrl);
+    }
+    
+    // Si hay textos válidos, mostrar el más reciente
+    if (validTexts.isNotEmpty) {
+      final StoryText storyText = validTexts.last;
+      return Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              storyText.bgColor,
+              storyText.bgColor.withValues(alpha: 0.8),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Container(
+          padding: EdgeInsets.all(24),
+          child: Center(
+            child: Text(
+              storyText.text,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                height: 1.4,
+                shadows: [
+                  Shadow(
+                    color: Colors.black.withValues(alpha: 0.3),
+                    offset: const Offset(0, 1),
+                    blurRadius: 2,
+                  ),
+                ],
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 6,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+      );
+    }
+    
+    // Fallback: mostrar un placeholder si no hay contenido válido
+    return Container(
+      color: Colors.grey[300],
+      child: Center(
+        child: Icon(
+          IconlyBold.image,
+          color: Colors.grey[600],
+          size: 48,
+        ),
+      ),
+    );
   }
 
   IconData _getStoryTypeIcon() {

@@ -13,7 +13,9 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:chat_messenger/api/story_api.dart';
 import 'package:chat_messenger/media/helpers/media_helper.dart';
 import 'package:chat_messenger/routes/app_routes.dart';
+import 'package:wechat_assets_picker/wechat_assets_picker.dart';
 import 'story_camera_screen.dart';
+import 'story_preview_screen.dart';
 
 class StoriesScreen extends GetView<StoryController> {
   const StoriesScreen({super.key});
@@ -914,22 +916,47 @@ class AddStoryButton extends StatelessWidget {
     Navigator.pop(context); // Cerrar el bottom sheet
     
     try {
-      final File? imageFile = await MediaHelper.pickMediaFromGallery(
-        maxWidth: 1920,
-        maxHeight: 1080,
-        imageQuality: 90,
+      // Usar getAssets que es más confiable en iOS
+      final List<File>? files = await MediaHelper.getAssets(
+        maxAssets: 1,
+        requestType: RequestType.image,
       );
       
-      if (imageFile != null) {
-        // Subir la historia de imagen
-        await StoryApi.uploadImageStory(imageFile);
+      if (files != null && files.isNotEmpty) {
+        final File imageFile = files.first;
+        
+        // Verificar que el archivo existe y es válido
+        if (await imageFile.exists()) {
+          // Navegar a la pantalla de preview para agregar música y configuraciones
+          Get.to(
+            () => StoryPreviewScreen(
+              file: imageFile,
+              isVideo: false,
+            ),
+            transition: Transition.rightToLeft,
+            duration: const Duration(milliseconds: 300),
+          );
+        } else {
+          Get.snackbar(
+            'Error',
+            'El archivo seleccionado no es válido',
+            snackPosition: SnackPosition.BOTTOM,
+          );
+        }
       }
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Error al seleccionar la imagen: $e',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      // Solo mostrar error si no es una cancelación del usuario
+      final errorStr = e.toString().toLowerCase();
+      if (!errorStr.contains('cancel') && 
+          !errorStr.contains('cancelled') &&
+          !errorStr.contains('cloudphotolibraryerrordomain') &&
+          !errorStr.contains('invalid_image')) {
+        Get.snackbar(
+          'Error',
+          'Error al seleccionar la imagen. Intenta con otra foto.',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+      }
     }
   }
 
@@ -940,15 +967,27 @@ class AddStoryButton extends StatelessWidget {
       final File? videoFile = await MediaHelper.pickVideo();
       
       if (videoFile != null) {
-        // Subir la historia de video
-        await StoryApi.uploadVideoStory(videoFile);
+        // Navegar a la pantalla de preview para agregar música y configuraciones
+        Get.to(
+          () => StoryPreviewScreen(
+            file: videoFile,
+            isVideo: true,
+          ),
+          transition: Transition.rightToLeft,
+          duration: const Duration(milliseconds: 300),
+        );
       }
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Error al seleccionar el video: $e',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      // Solo mostrar error si no es una cancelación del usuario
+      if (!e.toString().contains('cancel') && 
+          !e.toString().contains('Cancelled') &&
+          !e.toString().contains('CloudPhotoLibraryErrorDomain')) {
+        Get.snackbar(
+          'Error',
+          'Error al seleccionar el video. Intenta con otro video.',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+      }
     }
   }
 

@@ -6,8 +6,8 @@ import 'package:get/get.dart';
 import 'package:chat_messenger/tabs/stories/story_preview_screen.dart';
 import 'dart:async';
 import 'dart:io';
-import 'package:chat_messenger/api/story_api.dart';
-import 'package:chat_messenger/helpers/dialog_helper.dart';
+import 'package:chat_messenger/routes/app_routes.dart';
+import 'package:wechat_assets_picker/wechat_assets_picker.dart';
 
 class StoryCamera extends StatefulWidget {
   const StoryCamera({
@@ -72,7 +72,7 @@ class _StoryCameraState extends State<StoryCamera>
       final camera = widget.cameras.first;
       _cameraController = CameraController(
         camera,
-        ResolutionPreset.veryHigh,
+        ResolutionPreset.high,
         enableAudio: widget.isVideo,
       );
       
@@ -138,7 +138,7 @@ class _StoryCameraState extends State<StoryCamera>
       
       _cameraController = CameraController(
         camera,
-        ResolutionPreset.veryHigh,
+        ResolutionPreset.high,
         enableAudio: widget.isVideo,
       );
       
@@ -248,6 +248,27 @@ class _StoryCameraState extends State<StoryCamera>
     }
   }
 
+  Future<void> _pickImageFromGallery() async {
+    final List<AssetEntity>? assets = await AssetPicker.pickAssets(
+      context,
+      pickerConfig: const AssetPickerConfig(
+        maxAssets: 1,
+        requestType: RequestType.common,
+      ),
+    );
+
+    if (assets != null && assets.isNotEmpty) {
+      final file = await assets.first.file;
+      if (file != null) {
+        final isVideo = assets.first.type == AssetType.video;
+        Get.to(() => StoryPreviewScreen(
+          file: file,
+          isVideo: isVideo,
+        ));
+      }
+    }
+  }
+
   String _formatRecordingTime(int seconds) {
     final minutes = seconds ~/ 60;
     final remainingSeconds = seconds % 60;
@@ -256,14 +277,29 @@ class _StoryCameraState extends State<StoryCamera>
 
   @override
   Widget build(BuildContext context) {
+    final bool isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
+    final double widthPreview = _isInitialized 
+        ? (_cameraController.value.previewSize?.width ?? 0)
+        : 0;
+    final double heightPreview = _isInitialized 
+        ? (_cameraController.value.previewSize?.height ?? 0)
+        : 0;
+    
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         children: [
           // Camera Preview
-          if (_isInitialized)
+          if (_isInitialized && widthPreview > 0 && heightPreview > 0)
             Positioned.fill(
-              child: CameraPreview(_cameraController),
+              child: FittedBox(
+                fit: BoxFit.cover,
+                child: SizedBox(
+                  width: isPortrait ? heightPreview : widthPreview,
+                  height: isPortrait ? widthPreview : heightPreview,
+                  child: CameraPreview(_cameraController),
+                ),
+              ),
             )
           else
             const Center(
@@ -272,25 +308,13 @@ class _StoryCameraState extends State<StoryCamera>
               ),
             ),
           
-          // Flash overlay
-          if (_isFlashOn)
-            AnimatedBuilder(
-              animation: _flashAnimation,
-              builder: (context, child) {
-                return Positioned.fill(
-                  child: Container(
-                    color: Colors.white.withOpacity(_flashAnimation.value * 0.3),
-                  ),
-                );
-              },
-            ),
-          
           // Top controls
-          SafeArea(
-            child: Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              bottom: false,
               child: Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
@@ -324,7 +348,7 @@ class _StoryCameraState extends State<StoryCamera>
                       ),
                     ),
                     
-                    // Recording timer
+                    // Recording timer or Aa Button (when not recording)
                     if (_isRecording)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -354,9 +378,34 @@ class _StoryCameraState extends State<StoryCamera>
                             ),
                           ],
                         ),
+                      )
+                    else
+                      // Text Mode (Aa) Button - Top Position
+                      GestureDetector(
+                        onTap: () {
+                          Get.toNamed(AppRoutes.writeStory);
+                        },
+                        child: Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.5),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Center(
+                            child: Text(
+                              'Aa',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
                     
-                    // Flash toggle - CORREGIDO
+                    // Flash toggle
                     GestureDetector(
                       onTap: _toggleFlash,
                       child: Container(
@@ -402,24 +451,24 @@ class _StoryCameraState extends State<StoryCamera>
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    // Switch camera
+                    // Gallery Button (Left)
                     GestureDetector(
-                      onTap: _switchCamera,
+                      onTap: _pickImageFromGallery,
                       child: Container(
-                        width: 56,
-                        height: 56,
+                        width: 48,
+                        height: 48,
                         decoration: BoxDecoration(
                           color: Colors.black.withOpacity(0.5),
-                          shape: BoxShape.circle,
+                          borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color: Colors.white.withOpacity(0.3),
                             width: 2,
                           ),
                         ),
                         child: const Icon(
-                          Icons.flip_camera_ios,
+                          Icons.photo_library,
                           color: Colors.white,
-                          size: 28,
+                          size: 24,
                         ),
                       ),
                     ),
@@ -474,22 +523,25 @@ class _StoryCameraState extends State<StoryCamera>
                       ),
                     ),
                     
-                    // Mode indicator
-                    Container(
-                      width: 56,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.5),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.3),
-                          width: 2,
+                    // Switch Camera (Right)
+                    GestureDetector(
+                      onTap: _switchCamera,
+                      child: Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.5),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.3),
+                            width: 2,
+                          ),
                         ),
-                      ),
-                      child: Icon(
-                        widget.isVideo ? Icons.videocam : Icons.camera_alt,
-                        color: Colors.white,
-                        size: 28,
+                        child: const Icon(
+                          Icons.flip_camera_ios,
+                          color: Colors.white,
+                          size: 24,
+                        ),
                       ),
                     ),
                   ],

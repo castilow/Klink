@@ -368,19 +368,26 @@ class StoryViewScreen extends StatelessWidget {
                   child: Container(
                     padding: EdgeInsets.all(isTablet ? 16 : 12),
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.5),
+                      color: Colors.black.withValues(alpha: 0.4),
                       borderRadius: BorderRadius.circular(isTablet ? 20 : 16),
                       border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.2),
+                        color: Colors.white.withValues(alpha: 0.1),
                         width: 1,
                       ),
                     ),
                     child: Row(
                       children: [
-                        Icon(
-                          Icons.music_note,
-                          color: Colors.white,
-                          size: isTablet ? 24 : 20,
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF00E5FF).withOpacity(0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.music_note,
+                            color: const Color(0xFF00E5FF),
+                            size: isTablet ? 24 : 20,
+                          ),
                         ),
                         SizedBox(width: isTablet ? 12 : 8),
                         Expanded(
@@ -410,19 +417,18 @@ class StoryViewScreen extends StatelessWidget {
                             ],
                           ),
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.blue.withOpacity(0.3),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            '30s',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: isTablet ? 12 : 10,
-                              fontWeight: FontWeight.bold,
-                            ),
+                        // Equalizer animation placeholder
+                        Row(
+                          children: List.generate(3, (index) => 
+                            Container(
+                              width: 3,
+                              height: 12 + (index % 2 * 8),
+                              margin: const EdgeInsets.symmetric(horizontal: 1),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF00E5FF),
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            )
                           ),
                         ),
                       ],
@@ -462,17 +468,19 @@ class StoryViewScreen extends StatelessWidget {
                           child: Container(
                             height: isTablet ? 56 : 48,
                             decoration: BoxDecoration(
-                              gradient: LinearGradient(
+                              gradient: const LinearGradient(
                                 colors: [
-                                  primaryColor.withValues(alpha: 0.8),
-                                  primaryColor.withValues(alpha: 0.6),
+                                  Color(0xFF00E5FF), // Cyan
+                                  Color(0xFF2979FF), // Blue
                                 ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
                               ),
                               borderRadius: BorderRadius.circular(isTablet ? 16 : 12),
                               boxShadow: [
                                 BoxShadow(
-                                  color: primaryColor.withValues(alpha: 0.3),
-                                  blurRadius: 10,
+                                  color: const Color(0xFF2979FF).withOpacity(0.4),
+                                  blurRadius: 12,
                                   offset: const Offset(0, 4),
                                 ),
                               ],
@@ -498,7 +506,8 @@ class StoryViewScreen extends StatelessWidget {
                                       style: TextStyle(
                                         color: Colors.white,
                                         fontSize: isTablet ? 16 : 14,
-                                        fontWeight: FontWeight.w600,
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: 0.5,
                                       ),
                                     ),
                                   ],
@@ -514,10 +523,10 @@ class StoryViewScreen extends StatelessWidget {
                           child: Container(
                             height: isTablet ? 56 : 48,
                             decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.2),
+                              color: Colors.white.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(isTablet ? 16 : 12),
                               border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.3),
+                                color: Colors.white.withValues(alpha: 0.2),
                                 width: 1,
                               ),
                             ),
@@ -543,6 +552,7 @@ class StoryViewScreen extends StatelessWidget {
                                         color: Colors.white,
                                         fontSize: isTablet ? 16 : 14,
                                         fontWeight: FontWeight.w600,
+                                        letterSpacing: 0.5,
                                       ),
                                     ),
                                   ],

@@ -30,3 +30,19 @@ Este directorio debe contener las imágenes predeterminadas para el fondo del ch
    - `chat_background_light.jpg` (o `.png`)
 3. Las imágenes ya están declaradas en `pubspec.yaml` (directorio `assets/images/`)
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

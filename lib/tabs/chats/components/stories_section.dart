@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import 'package:camera/camera.dart';
 import 'package:chat_messenger/models/chat.dart';
 import 'package:chat_messenger/controllers/auth_controller.dart';
 import 'package:chat_messenger/tabs/chats/components/story_item.dart';
 import 'package:chat_messenger/tabs/stories/controller/story_controller.dart';
 import 'package:chat_messenger/tabs/stories/story_view_screen.dart';
+import 'package:chat_messenger/tabs/stories/story_camera_screen.dart';
 import 'package:chat_messenger/routes/app_routes.dart';
 import 'package:get/get.dart';
 
@@ -73,7 +75,37 @@ class StoriesSection extends StatelessWidget {
                           isMe: true,
                           hasStory: true,
                           onTap: () {
-                            Get.to(() => StoryViewScreen(story: myStory));
+                            Get.bottomSheet(
+                              Container(
+                                padding: const EdgeInsets.all(20),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).scaffoldBackgroundColor,
+                                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                                ),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    ListTile(
+                                      leading: const Icon(Icons.visibility_outlined),
+                                      title: const Text('Ver historia'),
+                                      onTap: () {
+                                        Get.back();
+                                        Get.to(() => StoryViewScreen(story: myStory));
+                                      },
+                                    ),
+                                    ListTile(
+                                      leading: const Icon(Icons.add_circle_outline),
+                                      title: const Text('Crear otra historia'),
+                                      onTap: () async {
+                                        Get.back();
+                                        final cameras = await availableCameras();
+                                        Get.to(() => StoryCamera(cameras: cameras, isVideo: false));
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
                           },
                         ),
                       ),
@@ -91,8 +123,9 @@ class StoriesSection extends StatelessWidget {
                           name: 'Your Story',
                           isMe: true,
                           hasStory: false,
-                          onTap: () {
-                            Get.toNamed(AppRoutes.writeStory);
+                          onTap: () async {
+                            final cameras = await availableCameras();
+                            Get.to(() => StoryCamera(cameras: cameras, isVideo: false));
                           },
                         ),
                       ),

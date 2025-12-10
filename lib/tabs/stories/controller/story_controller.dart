@@ -76,24 +76,32 @@ class StoryController extends GetxController {
 
     debugPrint('📚 [STORY_CONTROLLER] Lista final de historias: ${stories.length}');
 
-    // Auto-cleanup expired stories from database
-    _cleanupExpiredStories(event);
+    // Auto-cleanup expired story items from database
+    // Limpiar items expirados de todas las historias (no solo las completamente expiradas)
+    _cleanupExpiredStoryItems(event);
   }
 
-  Future<void> _cleanupExpiredStories(List<Story> allStories) async {
-    final expiredStories = allStories
-        .where((story) => story.isExpired)
-        .toList();
+  Future<void> _cleanupExpiredStoryItems(List<Story> allStories) async {
+    debugPrint('🧹 [STORY_CONTROLLER] Limpiando items expirados de ${allStories.length} historias');
 
-    debugPrint('🧹 [STORY_CONTROLLER] Limpiando ${expiredStories.length} historias expiradas');
-
-    for (final story in expiredStories) {
+    for (final story in allStories) {
       try {
-        debugPrint('🧹 [STORY_CONTROLLER] Eliminando historia expirada de usuario: ${story.userId}');
-        await StoryApi.deleteExpiredStoryItems(story);
-        debugPrint('✅ [STORY_CONTROLLER] Historia expirada eliminada: ${story.userId}');
+        // Verificar si hay items expirados (aunque la historia tenga items válidos)
+        final now = DateTime.now();
+        final hasExpiredItems = story.texts.any((text) => 
+            now.difference(text.createdAt) >= const Duration(hours: 24)) ||
+          story.images.any((image) => 
+            now.difference(image.createdAt) >= const Duration(hours: 24)) ||
+          story.videos.any((video) => 
+            now.difference(video.createdAt) >= const Duration(hours: 24));
+
+        if (hasExpiredItems) {
+          debugPrint('🧹 [STORY_CONTROLLER] Eliminando items expirados de historia de usuario: ${story.userId}');
+          await StoryApi.deleteExpiredStoryItems(story);
+          debugPrint('✅ [STORY_CONTROLLER] Items expirados eliminados: ${story.userId}');
+        }
       } catch (e) {
-        debugPrint('❌ [STORY_CONTROLLER] Error limpiando historia expirada: $e');
+        debugPrint('❌ [STORY_CONTROLLER] Error limpiando items expirados: $e');
       }
     }
   }
