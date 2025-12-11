@@ -119,7 +119,6 @@
 		</array>
 		<key>UIViewControllerBasedStatusBarAppearance</key>
 		<false/>
-
 		<!-- Google Sign-In Client ID -->
 		<key>GIDClientID</key>
 		<string>1066544431393-6t8gr15v53lcvohlu4p7l67c6q712of0.apps.googleusercontent.com</string>

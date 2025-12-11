@@ -5,6 +5,7 @@ import 'package:flutter_iconly/flutter_iconly.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:chat_messenger/screens/auth/signup/controllers/signup_with_email_controller.dart';
+import 'package:chat_messenger/components/k_auth_background.dart';
 import 'package:chat_messenger/helpers/app_helper.dart';
 import 'package:chat_messenger/routes/app_routes.dart';
 import 'package:chat_messenger/config/theme_config.dart';
@@ -26,18 +27,69 @@ class SignUpWithEmailScreen extends GetView<SignUpWithEmailController> {
     final fieldBorderColor = Colors.grey[600];
     
     return Scaffold(
-      backgroundColor: backgroundColor,
-      body: SafeArea(
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            child: Form(
-              key: controller.formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const SizedBox(height: 60),
+      body: Stack(
+        children: [
+          // Fondo con imagen de K decorativa (versión revertida solo para registro)
+          const KAuthBackground(
+            imagePath: 'assets/images/bg_klink_revert3x_1284x2778.jpg',
+          ),
+
+          // Main content
+          SafeArea(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: Form(
+                  key: controller.formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                  const SizedBox(height: 40),
+                  
+                  // Logo integrado con alta calidad
+                  Container(
+                    width: 120,
+                    height: 120,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.3),
+                          blurRadius: 20,
+                          spreadRadius: 2,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(24),
+                      child: Image.asset(
+                        'assets/images/app_logo.png',
+                        width: 120,
+                        height: 120,
+                        fit: BoxFit.contain,
+                        filterQuality: FilterQuality.high,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            width: 120,
+                            height: 120,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[800],
+                              borderRadius: BorderRadius.circular(24),
+                            ),
+                            child: Icon(
+                              Icons.image,
+                              color: Colors.grey[600],
+                              size: 60,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 32),
                   
                   Text(
                     'Registrarse',
@@ -283,48 +335,65 @@ class SignUpWithEmailScreen extends GetView<SignUpWithEmailController> {
                   const SizedBox(height: 32),
                   
                   // ─── PRIVACY & TERMS ──────────────────────────────────────
-                  Text(
-                    'Al registrarte aceptas nuestros',
-                    style: TextStyle(
-                      color: Colors.grey[500],
-                      fontSize: 14,
-                    ),
-                  ),
-                  
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
+                      Text(
+                        'Al registrarte aceptas nuestros',
+                        style: TextStyle(
+                          color: Colors.grey[500],
+                          fontSize: 14,
+                        ),
+                      ),
                       TextButton(
                         onPressed: () {},
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
                         child: Text(
                           'Política de Privacidad',
                           style: TextStyle(
                             color: textColor,
                             fontWeight: FontWeight.w500,
+                            fontSize: 14,
                           ),
                         ),
                       ),
                       Text(
                         'y',
-                        style: TextStyle(color: Colors.grey[500]),
+                        style: TextStyle(
+                          color: Colors.grey[500],
+                          fontSize: 14,
+                        ),
                       ),
                       TextButton(
                         onPressed: () {},
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
                         child: Text(
                           'Términos de Servicio',
                           style: TextStyle(
                             color: textColor,
                             fontWeight: FontWeight.w500,
+                            fontSize: 14,
                           ),
                         ),
                       ),
                     ],
                   ),
-                ],
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }

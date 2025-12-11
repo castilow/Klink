@@ -32,11 +32,15 @@ import 'package:chat_messenger/tabs/stories/story_view_screen.dart';
 import 'package:chat_messenger/screens/edit_profile_screen.dart';
 import 'package:chat_messenger/tabs/profile/profile_view_screen.dart';
 import 'package:chat_messenger/tabs/profile/profile_screen.dart';
+import 'package:chat_messenger/tabs/profile/edit_bio_screen.dart';
 import 'package:chat_messenger/screens/wallet/wallet_screen.dart';
 import 'package:chat_messenger/screens/appearance_screen.dart';
 import 'package:chat_messenger/screens/bubble_color_picker_screen.dart';
 import 'package:chat_messenger/screens/text_size_screen.dart';
 import 'package:chat_messenger/screens/chat_settings_screen.dart';
+import 'package:chat_messenger/screens/data_storage_screen.dart';
+import 'package:chat_messenger/screens/privacy_and_security_screen.dart';
+import 'package:chat_messenger/screens/help/help_screen.dart';
 
 import 'package:chat_messenger/screens/price_screen.dart';
 import 'package:chat_messenger/screens/woop_dashboard_screen.dart';
@@ -202,6 +206,10 @@ abstract class AppPages {
       },
     ),
     GetPage(
+      name: AppRoutes.editBio,
+      page: () => const EditBioScreen(),
+    ),
+    GetPage(
       name: AppRoutes.profileView,
       page: () {
         final args = Get.arguments as Map<String, dynamic>;
@@ -249,6 +257,18 @@ abstract class AppPages {
       name: AppRoutes.chatSettings,
       page: () => const ChatSettingsScreen(),
 
+    ),
+    GetPage(
+      name: AppRoutes.dataStorage,
+      page: () => const DataStorageScreen(),
+    ),
+    GetPage(
+      name: AppRoutes.privacyAndSecurity,
+      page: () => const PrivacyAndSecurityScreen(),
+    ),
+    GetPage(
+      name: AppRoutes.help,
+      page: () => const HelpScreen(),
     ),
   ];
 }

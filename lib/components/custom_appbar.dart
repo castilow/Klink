@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:chat_messenger/theme/app_theme.dart';
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   const CustomAppBar({
@@ -24,6 +25,9 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool isDarkMode = AppTheme.of(context).isDarkMode;
+    final Color iconColor = isDarkMode ? Colors.white : Colors.black87;
+    
     return AppBar(
       backgroundColor: backgroundColor,
       centerTitle: centerTitle,
@@ -32,8 +36,11 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           : leading ??
               IconButton(
                 onPressed: onBackPress ?? () => Get.back(),
-                icon: const Icon(Icons.arrow_back_ios_new_sharp,
-                    color: Colors.white),
+                icon: Icon(
+                  Icons.arrow_back_ios_new_sharp,
+                  color: iconColor,
+                  size: 20,
+                ),
               ),
       titleSpacing: 0,
       title: title,

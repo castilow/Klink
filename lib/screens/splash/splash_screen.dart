@@ -2,34 +2,28 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:chat_messenger/screens/splash/controller/splash_controller.dart';
 import 'package:chat_messenger/config/theme_config.dart';
-import 'package:chat_messenger/controllers/preferences_controller.dart';
 
-class SplashScreen extends StatelessWidget {
+class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    // Init splash controller
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Init splash controller - esto ejecutará el bootstrap y navegará automáticamente
     Get.put(SplashController());
+  }
 
-    // Detectar el tema actual del sistema
-    final brightness = MediaQuery.of(context).platformBrightness;
-    final isDarkMode = brightness == Brightness.dark;
-
+  @override
+  Widget build(BuildContext context) {
+    // Pantalla completamente invisible - transición directa sin mostrar logo
     return Scaffold(
-      backgroundColor: isDarkMode ? darkThemeBgColor : lightThemeBgColor,
-      body: Center(
-        child: SizedBox(
-          width: 160,
-          height: 160,
-          child: Image.asset(
-            'assets/images/app_logo.png',
-            fit: BoxFit.contain,
-            // Sin color forzado - usa el color original de la imagen
-            // Se adapta automáticamente al tema
-          ),
-        ),
-      ),
+      backgroundColor: darkThemeBgColor, // Mismo fondo oscuro para transición suave
+      body: const SizedBox.shrink(), // Sin contenido visual
     );
   }
 }

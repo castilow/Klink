@@ -30,16 +30,15 @@ class AppLogo extends StatelessWidget {
           ),
         ],
       ),
-      child: ClipOval(
-        child: Image.asset(
-          'assets/images/app_icon.png',
-          width: logoSize,
-          height: logoSize,
-          fit: BoxFit.cover,
-          // Si se proporciona un color, lo aplica; si no, usa el original
-          color: color,
-          colorBlendMode: color != null ? BlendMode.srcIn : null,
-        ),
+      child: Image.asset(
+        'assets/images/app_logo.png',
+        width: logoSize,
+        height: logoSize,
+        fit: BoxFit.contain,
+        // Si se proporciona un color, lo aplica; si no, usa el original
+        color: color,
+        colorBlendMode: color != null ? BlendMode.srcIn : null,
+        filterQuality: FilterQuality.high,
       ),
     );
   }

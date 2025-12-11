@@ -571,7 +571,7 @@ final bool kbOpen = MediaQuery.of(context).viewInsets.bottom > 0;
                     color: isDark ? Colors.white : Colors.black,
                     fontSize: 16,
                   ),
-                  cursorColor: primaryColor,
+                  cursorColor: isDark ? Colors.white : primaryColor,
                   decoration: InputDecoration(
                     hintText: controller.isEditing ? 'Edit message...' : 'Message',
                     hintStyle: TextStyle(
@@ -601,7 +601,11 @@ final bool kbOpen = MediaQuery.of(context).viewInsets.bottom > 0;
                       width: 44,
                       height: 44,
                       alignment: Alignment.center,
-                      child: Icon(Icons.check_circle, color: primaryColor, size: 32),
+                      child: Icon(
+                        Icons.check_circle,
+                        color: isDark ? Colors.white : primaryColor,
+                        size: 32,
+                      ),
                     ),
                   )
                 : _isTextMsg
@@ -611,7 +615,11 @@ final bool kbOpen = MediaQuery.of(context).viewInsets.bottom > 0;
                           width: 44,
                           height: 44,
                           alignment: Alignment.center,
-                          child: Icon(Icons.send_rounded, color: primaryColor, size: 28),
+                          child: Icon(
+                            Icons.send_rounded,
+                            color: isDark ? Colors.white : primaryColor,
+                            size: 28,
+                          ),
                         ),
                       )
                     : GestureDetector(

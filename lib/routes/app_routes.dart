@@ -30,6 +30,7 @@ abstract class AppRoutes {
   static const String groupDetails = '/group-details';
   static const String editGroup = '/edit-group';
   static const String editProfile = '/edit-profile';
+  static const String editBio = '/edit-bio';
   static const String profileView = '/profile-view';
   static const String writeStory = '/write-story';
   static const String storyView = '/story-view';
@@ -45,4 +46,7 @@ abstract class AppRoutes {
   static const String bubbleColorPicker = '/bubble-color-picker';
   static const String textSize = '/text-size';
   static const String chatSettings = '/chat-settings';
+  static const String dataStorage = '/data-storage';
+  static const String privacyAndSecurity = '/privacy-and-security';
+  static const String help = '/help';
 }

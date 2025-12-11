@@ -5,6 +5,7 @@ import 'package:flutter_iconly/flutter_iconly.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:chat_messenger/components/app_logo.dart';
+import 'package:chat_messenger/components/k_auth_background.dart';
 import 'package:chat_messenger/screens/auth/signin/controller/signin_controller.dart';
 import 'package:chat_messenger/helpers/app_helper.dart';
 import 'package:chat_messenger/routes/app_routes.dart';
@@ -28,25 +29,11 @@ class SignInScreen extends GetView<SignInController> {
     final fieldBorderColor = Colors.grey[600];
     
     return Scaffold(
-      backgroundColor: backgroundColor,
       body: Stack(
         children: [
-          // Background gradient
-          Positioned.fill(
-            child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    darkThemeBgColor,
-                    darkPrimaryContainer,
-                    darkPrimaryContainer,
-                    darkThemeBgColor,
-                  ],
-                ),
-              ),
-            ),
+          // Fondo con K decorativa (versión full bright solo para login)
+          const KAuthBackground(
+            imagePath: 'assets/images/k_full_bright_iphone_1284x2778.png',
           ),
 
           // Main content
@@ -60,27 +47,57 @@ class SignInScreen extends GetView<SignInController> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      const SizedBox(height: 60),
+                      const SizedBox(height: 40),
 
-                      // Logo without background shadow
+                      // Logo integrado con alta calidad
                       Container(
-                        width: 160,
-                        height: 160,
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
+                        width: 120,
+                        height: 120,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.3),
+                              blurRadius: 20,
+                              spreadRadius: 2,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
                         ),
-                        child: const AppLogo(width: 160),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(24),
+                          child: Image.asset(
+                            'assets/images/app_logo.png',
+                            width: 120,
+                            height: 120,
+                            fit: BoxFit.contain,
+                            filterQuality: FilterQuality.high,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                width: 120,
+                                height: 120,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[800],
+                                  borderRadius: BorderRadius.circular(24),
+                                ),
+                                child: Icon(
+                                  Icons.image,
+                                  color: Colors.grey[600],
+                                  size: 60,
+                                ),
+                              );
+                            },
+                          ),
+                        ),
                       ),
 
-                      const SizedBox(height: 40),
+                      const SizedBox(height: 32),
 
                       Text(
                         'Iniciar Sesión',
-                        style: TextStyle(
+                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                           color: textColor,
-                          fontSize: 42,
                           fontWeight: FontWeight.bold,
-                          letterSpacing: 2,
                         ),
                       ),
 
@@ -383,24 +400,29 @@ class SignInScreen extends GetView<SignInController> {
                       const SizedBox(height: 32),
 
                       // Privacy and Terms
-                      Text(
-                        'Al iniciar sesión aceptas nuestros',
-                        style: TextStyle(
-                          color: Colors.grey[500],
-                          fontSize: 14,
-                          letterSpacing: 0.3,
-                        ),
-                      ),
-
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
+                          Text(
+                            'Al iniciar sesión aceptas nuestros',
+                            style: TextStyle(
+                              color: Colors.grey[500],
+                              fontSize: 14,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
                           TextButton(
                             onPressed: () {},
-                              child: Text(
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 4),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            child: Text(
                               'Política de Privacidad',
                               style: TextStyle(
-                                  color: textColor,
+                                color: textColor,
                                 fontWeight: FontWeight.w500,
                                 fontSize: 14,
                                 letterSpacing: 0.3,
@@ -417,10 +439,15 @@ class SignInScreen extends GetView<SignInController> {
                           ),
                           TextButton(
                             onPressed: () {},
-                              child: Text(
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 4),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            child: Text(
                               'Términos de Servicio',
                               style: TextStyle(
-                                  color: textColor,
+                                color: textColor,
                                 fontWeight: FontWeight.w500,
                                 fontSize: 14,
                                 letterSpacing: 0.3,

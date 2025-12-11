@@ -144,7 +144,7 @@ class ProfileScreen extends StatelessWidget {
                   subtitle: AuthController.instance.currentUser.bio.isNotEmpty 
                       ? AuthController.instance.currentUser.bio 
                       : 'Add a bio',
-                  onTap: () => Get.toNamed(AppRoutes.editProfile, arguments: {'user': AuthController.instance.currentUser}),
+                  onTap: () => Get.toNamed(AppRoutes.editBio),
                 ),
                 _buildDivider(isDarkMode),
                 _buildSettingsItem(
@@ -160,14 +160,6 @@ class ProfileScreen extends StatelessWidget {
                   title: 'Username',
                   subtitle: '@${AuthController.instance.currentUser.username}',
                   onTap: () {}, // Navigate to change username
-                ),
-                _buildDivider(isDarkMode),
-                _buildSettingsItem(
-                  context,
-                  icon: IconlyLight.call,
-                  title: 'Phone Number',
-                  subtitle: '+1 234 567 890', // Placeholder
-                  onTap: () {},
                 ),
 
                 const SizedBox(height: 16),
@@ -185,14 +177,14 @@ class ProfileScreen extends StatelessWidget {
                   context,
                   icon: IconlyLight.lock,
                   title: 'Privacy and Security',
-                  onTap: () {},
+                  onTap: () => Get.toNamed(AppRoutes.privacyAndSecurity),
                 ),
                 _buildDivider(isDarkMode),
                 _buildSettingsItem(
                   context,
                   icon: IconlyLight.paper,
                   title: 'Data and Storage',
-                  onTap: () {},
+                  onTap: () => Get.toNamed(AppRoutes.dataStorage),
                 ),
                 _buildDivider(isDarkMode),
                 _buildSettingsItem(
@@ -209,6 +201,8 @@ class ProfileScreen extends StatelessWidget {
                   subtitle: prefController.langName,
                   onTap: () => Get.to(() => const LanguagesScreen()),
                 ),
+                _buildDivider(isDarkMode),
+                _buildDarkModeToggle(context, prefController),
 
                 const SizedBox(height: 16),
 
@@ -218,14 +212,14 @@ class ProfileScreen extends StatelessWidget {
                   context,
                   icon: IconlyLight.infoSquare,
                   title: 'Ask a Question',
-                  onTap: () {},
+                  onTap: () => Get.toNamed(AppRoutes.help),
                 ),
                 _buildDivider(isDarkMode),
                 _buildSettingsItem(
                   context,
                   icon: IconlyLight.paper,
-                  title: 'Telegram FAQ',
-                  onTap: () => AppHelper.openTermsPage(), // Placeholder
+                  title: 'Klink Website',
+                  onTap: () => AppHelper.openUrl('https://klink.technology/'),
                 ),
                 _buildDivider(isDarkMode),
                 _buildSettingsItem(
@@ -300,6 +294,31 @@ class ProfileScreen extends StatelessWidget {
         indent: 72,
         color: isDarkMode ? Colors.black : Colors.grey[200],
       ),
+    );
+  }
+
+  Widget _buildDarkModeToggle(BuildContext context, PreferencesController prefController) {
+    final bool isDarkMode = AppTheme.of(context).isDarkMode;
+    return Container(
+      color: isDarkMode ? const Color(0xFF17212B) : Colors.white,
+      child: Obx(() => SwitchListTile(
+        secondary: Icon(
+          isDarkMode ? Icons.dark_mode : Icons.light_mode,
+          color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+        ),
+        title: Text(
+          'Dark Mode',
+          style: TextStyle(
+            color: isDarkMode ? Colors.white : Colors.black,
+            fontSize: 16,
+          ),
+        ),
+        value: prefController.isDarkMode.value,
+        onChanged: (value) {
+          prefController.toggleTheme();
+        },
+        activeColor: primaryColor,
+      )),
     );
   }
 }
