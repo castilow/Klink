@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:chat_messenger/components/app_logo.dart';
@@ -55,25 +57,53 @@ abstract class NotificationHelper {
         break;
       case 'call':
         if (openRoute) {
-          final String callerId = (payload['senderId'] ?? '').toString();
-          final String channelId = (payload['channelId'] ?? '').toString();
-          final bool isVideo = (payload['isVideo'] ?? false) as bool;
-          
-          if (callerId.isNotEmpty && channelId.isNotEmpty) {
-            final user = User(
-              userId: callerId,
-              fullname: (payload['senderName'] ?? title).toString(),
-              photoUrl: (payload['senderPhoto'] ?? '').toString(),
-            );
-            await Get.toNamed(
-              AppRoutes.call,
-              arguments: {
-                'user': user,
-                'isIncoming': true,
-                'channelId': channelId,
-                'isVideo': isVideo,
-              },
-            );
+          try {
+            // Los datos de llamada vienen en el campo 'call' como JSON string
+            String? callDataStr = payload['call']?.toString();
+            Map<String, dynamic>? callData;
+            
+            if (callDataStr != null && callDataStr.isNotEmpty) {
+              // Intentar parsear como JSON
+              try {
+                callData = jsonDecode(callDataStr) as Map<String, dynamic>;
+              } catch (e) {
+                // Si falla, usar los datos directamente del payload
+                callData = null;
+              }
+            }
+            
+            // Extraer datos de llamada (del objeto call o del payload directamente)
+            final String callerId = callData?['callerId']?.toString() ?? 
+                                    payload['senderId']?.toString() ?? '';
+            final String callId = callData?['callId']?.toString() ?? 
+                                  payload['callId']?.toString() ?? '';
+            final bool isVideo = callData?['isVideoCall'] == true || 
+                                 payload['isVideo'] == true || 
+                                 (payload['isVideo']?.toString() == 'true');
+            final String callerName = callData?['callerName']?.toString() ?? 
+                                      payload['senderName']?.toString() ?? 
+                                      title;
+            final String callerPhoto = callData?['callerPhoto']?.toString() ?? 
+                                       payload['senderPhoto']?.toString() ?? '';
+            
+            if (callerId.isNotEmpty && callId.isNotEmpty) {
+              final user = User(
+                userId: callerId,
+                fullname: callerName,
+                photoUrl: callerPhoto,
+              );
+              await Get.toNamed(
+                AppRoutes.call,
+                arguments: {
+                  'user': user,
+                  'isIncoming': true,
+                  'channelId': callId,
+                  'isVideo': isVideo,
+                },
+              );
+            }
+          } catch (e) {
+            debugPrint('Error procesando notificación de llamada: $e');
           }
         }
         break;

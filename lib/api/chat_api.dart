@@ -64,6 +64,8 @@ abstract class ChatApi {
     required Message message,
   }) async {
     try {
+      debugPrint('📝 [CHAT_API] saveGroupChat iniciado para userId: $userId, groupId: $groupId');
+      
       // Get chat instance for group
       final Chat chat = Chat(
         senderId: message.senderId,
@@ -73,16 +75,33 @@ abstract class ChatApi {
         groupId: groupId, // This identifies it as a group chat
       );
 
+      final chatMap = chat.toMap(false);
+      debugPrint('📝 [CHAT_API] Datos del chat a guardar: groupId=$groupId, msgId=${chat.msgId}, lastMsg="${chat.lastMsg}"');
+      debugPrint('📝 [CHAT_API] Ruta: Users/$userId/Chats/$groupId');
+
       // Save group chat in user's collection using groupId as document ID
       await _firestore
           .collection('Users/$userId/Chats')
           .doc(groupId)
-          .set(chat.toMap(false), SetOptions(merge: true));
+          .set(chatMap, SetOptions(merge: true));
 
-      // Debug
-      debugPrint('saveGroupChat() -> success for user: $userId, group: $groupId');
-    } catch (e) {
-      debugPrint('saveGroupChat() -> error: $e');
+      // Verify it was saved
+      final savedDoc = await _firestore
+          .collection('Users/$userId/Chats')
+          .doc(groupId)
+          .get();
+      
+      if (savedDoc.exists) {
+        debugPrint('✅ [CHAT_API] saveGroupChat -> ÉXITO para user: $userId, group: $groupId');
+        debugPrint('✅ [CHAT_API] Documento verificado en Firestore');
+      } else {
+        debugPrint('⚠️ [CHAT_API] saveGroupChat -> Documento no encontrado después de guardar para user: $userId, group: $groupId');
+      }
+    } catch (e, stackTrace) {
+      debugPrint('❌ [CHAT_API] saveGroupChat -> ERROR para user: $userId, group: $groupId');
+      debugPrint('❌ [CHAT_API] Error: $e');
+      debugPrint('❌ [CHAT_API] Stack trace: $stackTrace');
+      rethrow; // Re-throw para que el error se propague
     }
   }
 
@@ -114,18 +133,22 @@ abstract class ChatApi {
               final groupDoc = await _firestore.collection('Groups').doc(groupId).get();
               if (groupDoc.exists) {
                 final groupData = groupDoc.data()!;
+                final String groupName = groupData['name'] ?? 'Grupo';
+                debugPrint('📋 [CHAT_API] Obteniendo grupo $groupId: nombre="$groupName"');
                 // Create a User object from group data for display
                 final User groupUser = User(
                   userId: groupId,
-                  fullname: groupData['name'] ?? 'Grupo',
+                  fullname: groupName,
                   photoUrl: groupData['photoUrl'] ?? '',
-                  username: groupData['name'] ?? 'Grupo',
+                  username: groupName,
                 );
                 chats.add(Chat.fromMap(data, doc: doc, receiver: groupUser));
                 processedGroups.add(groupId); // Mark as processed
+              } else {
+                debugPrint('⚠️ [CHAT_API] Grupo $groupId no existe en Firestore');
               }
             } catch (e) {
-              debugPrint('Error fetching group data: $e');
+              debugPrint('❌ [CHAT_API] Error obteniendo datos del grupo $groupId: $e');
             }
           }
         } else {

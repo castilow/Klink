@@ -4,6 +4,7 @@ import 'package:chat_messenger/helpers/notification_helper.dart';
 import 'package:chat_messenger/api/user_api.dart';
 import 'package:chat_messenger/controllers/auth_controller.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'local_notifications_service.dart';
@@ -42,12 +43,19 @@ abstract class FirebaseMessagingService {
       final type = data['type'] ?? 'alert';
       final isDataOnly = message.notification == null;
 
-      if (type == 'message' && isDataOnly) {
+      // Para mensajes data-only, mostrar notificación local
+      if ((type == 'message' || type == 'group') && isDataOnly) {
         await LocalNotificationsService.showSimple(
-          title: data['title'] ?? 'Nuevo mensaje',
-          body: data['message'] ?? '',
+          title: message.notification?.title ?? data['title'] ?? 'Nuevo mensaje',
+          body: message.notification?.body ?? data['message'] ?? '',
           payload: data,
         );
+      }
+      
+      // Para llamadas, las notificaciones push ya se muestran automáticamente
+      // pero podemos registrar el evento
+      if (type == 'call' && kDebugMode) {
+        debugPrint('📞 Notificación de llamada recibida en foreground');
       }
     });
 

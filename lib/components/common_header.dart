@@ -5,6 +5,7 @@ import 'package:chat_messenger/components/global_search_bar.dart';
 import 'package:chat_messenger/controllers/auth_controller.dart';
 import 'package:chat_messenger/models/user.dart';
 import 'package:chat_messenger/theme/app_theme.dart';
+import 'package:chat_messenger/config/theme_config.dart';
 import 'package:chat_messenger/routes/app_routes.dart';
 import 'package:flutter/services.dart';
 
@@ -32,6 +33,7 @@ class CommonHeader extends StatelessWidget {
     return SafeArea(
       child: Container(
         height: 80,
+        color: isDarkMode ? darkThemeBgColor : lightThemeBgColor,
         padding: const EdgeInsets.only(top: 8, left: 16, right: 16, bottom: 8),
         child: Row(
           children: [

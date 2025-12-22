@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_iconly/flutter_iconly.dart';
 import 'package:chat_messenger/config/theme_config.dart';
 import 'package:chat_messenger/controllers/preferences_controller.dart';
@@ -11,6 +12,7 @@ import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:chat_messenger/controllers/auth_controller.dart';
 import 'package:chat_messenger/models/user.dart';
+import 'package:chat_messenger/screens/home/controller/home_controller.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -52,6 +54,29 @@ class ProfileScreen extends StatelessWidget {
         physics: const BouncingScrollPhysics(),
         slivers: [
           SliverAppBar(
+            leading: IconButton(
+              icon: Icon(
+                Icons.arrow_back_ios_new,
+                color: isDarkMode ? Colors.white : Colors.black,
+              ),
+              onPressed: () {
+                HapticFeedback.selectionClick();
+                // Smart Navigation Handling
+                if (Get.isRegistered<HomeController>()) {
+                  final homeController = Get.find<HomeController>();
+                  if (homeController.pageIndex.value == 4) {
+                    // Navigate back to Home tab if on Settings tab
+                    homeController.pageIndex.value = 0;
+                  } else {
+                    // Pop screen if opened via route (e.g., from top photo)
+                    Get.back();
+                  }
+                } else {
+                  // Fallback
+                  Get.back();
+                }
+              },
+            ),
             expandedHeight: 220.0,
             floating: false,
             pinned: true,
@@ -122,10 +147,50 @@ class ProfileScreen extends StatelessWidget {
                 onPressed: () {}, // TODO: QR Code
               ),
               IconButton(
-                icon: const Icon(Icons.more_vert),
+                icon: const Icon(IconlyBold.logout),
                 onPressed: () {
-                   // TODO: Menu (Edit name, Log out)
-                   AuthApi.signOut();
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      backgroundColor: isDarkMode ? const Color(0xFF17212B) : Colors.white,
+                      title: Text(
+                        'Cerrar sesión',
+                        style: TextStyle(
+                          color: isDarkMode ? Colors.white : Colors.black,
+                        ),
+                      ),
+                      content: Text(
+                        '¿Estás seguro de que quieres cerrar sesión?',
+                        style: TextStyle(
+                          color: isDarkMode ? Colors.white70 : Colors.black87,
+                        ),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: Text(
+                            'Cancelar',
+                            style: TextStyle(
+                              color: isDarkMode ? Colors.white60 : Colors.grey,
+                            ),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.pop(context); // Close dialog
+                            AuthApi.signOut();
+                          },
+                          child: const Text(
+                            'Cerrar sesión',
+                            style: TextStyle(
+                              color: Colors.red,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
                 },
               ),
             ],

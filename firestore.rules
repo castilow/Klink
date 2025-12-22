@@ -43,8 +43,28 @@ service cloud.firestore {
 
       // User's chats - allow access to both participants
       match /Chats/{chatId} {
+        // Function to check if chatId is a valid group
+        function isValidGroup() {
+          return exists(/databases/$(database)/documents/Groups/$(chatId));
+        }
+        
+        // Function to check if a user is a member of the group (chatId)
+        function isMemberOfGroup(checkUserId) {
+          return isValidGroup() && 
+            checkUserId in get(/databases/$(database)/documents/Groups/$(chatId)).data.members;
+        }
+        
+        // Allow read/write if:
+        // 1. User is direct chat participant (1-to-1 chat)
+        // 2. User is owner and chatId is klink_ai_assistant
+        // 3. chatId is a group AND (the authenticated user is the owner of the chat entry OR is a member of the group)
+        //    This allows the admin to create chat entries for other members when creating a group
         allow read, write: if isDirectChatParticipant(userId, chatId) || 
-          (signedIn() && chatId == 'klink_ai_assistant' && request.auth.uid == userId);
+          (signedIn() && chatId == 'klink_ai_assistant' && request.auth.uid == userId) ||
+          (signedIn() && isValidGroup() && (
+            request.auth.uid == userId || // User owns this chat entry
+            isMemberOfGroup(request.auth.uid) // User is a member of the group
+          ));
 
         // Messages in chats - allow access to chat participants
         match /Messages/{messageId} {
@@ -87,15 +107,31 @@ service cloud.firestore {
     
     // Groups collection - allow authenticated users to read/write groups they're part of
     match /Groups/{groupId} {
-      allow read, write: if isGroupMember();
+      // Allow creation if user is the creator or will be a member
+      allow create: if signedIn() && (
+        request.resource.data.createdBy == request.auth.uid ||
+        request.auth.uid in request.resource.data.members
+      );
+      // Allow read/update/delete if user is a member
+      allow read, update, delete: if isGroupMember();
       
       // Group messages - allow group members to read/write
       match /Messages/{messageId} {
-        // Allow read and create/update for group members
-        allow read, create, update: if isGroupMember();
+        // Function to check if user is member of parent group
+        function isParentGroupMember() {
+          return signedIn() && 
+            exists(/databases/$(database)/documents/Groups/$(groupId)) &&
+            request.auth.uid in get(/databases/$(database)/documents/Groups/$(groupId)).data.members;
+        }
+        
+        // Allow creation if user is a member of the parent group
+        allow create: if isParentGroupMember();
+        
+        // Allow read and update for group members (check parent group membership)
+        allow read, update: if isParentGroupMember();
         
         // Allow delete for group members (needed for temporary message cleanup)
-        allow delete: if isGroupMember();
+        allow delete: if isParentGroupMember();
       }
     }
 

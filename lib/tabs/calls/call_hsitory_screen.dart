@@ -44,9 +44,12 @@ class CallHistoryScreen extends GetView<CallHistoryController> {
           );
         },
       ),
-      floatingActionButton: FloatingButton(
-        icon: IconlyBold.calling,
-        onPress: () => Get.toNamed(AppRoutes.contacts),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 165),
+        child: FloatingButton(
+          icon: IconlyBold.calling,
+          onPress: () => Get.toNamed(AppRoutes.contacts),
+        ),
       ),
     );
   }

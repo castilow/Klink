@@ -75,23 +75,23 @@ class _WalletScreenState extends State<WalletScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
-      backgroundColor: const Color(0xFF17182D),
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         automaticallyImplyLeading: false,
         leading: Navigator.canPop(context) ? IconButton(
-          icon: Container(
+            icon: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
+              color: Colors.black.withOpacity(0.05),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.black.withOpacity(0.1),
                 width: 1,
               ),
             ),
-            child: const Icon(Icons.arrow_back, color: Colors.white),
+            child: const Icon(Icons.arrow_back, color: Colors.black),
           ),
           onPressed: () => Get.back(),
         ) : null,
@@ -100,7 +100,7 @@ class _WalletScreenState extends State<WalletScreen>
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: Colors.black,
           ),
         ),
       ),
@@ -110,9 +110,9 @@ class _WalletScreenState extends State<WalletScreen>
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              const Color(0xFF17182D),
-              const Color(0xFF1E1F38),
-              const Color(0xFF17182D).withOpacity(0.95),
+              Colors.white,
+              const Color(0xFFF8FAFC),
+              Colors.white,
             ],
           ),
         ),
@@ -138,15 +138,15 @@ class _WalletScreenState extends State<WalletScreen>
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               colors: [
-                                const Color(0xFF1A1A1A).withOpacity(0.2),
-                                const Color(0xFF4B5563).withOpacity(0.1),
+                                Colors.white,
+                                const Color(0xFFF8FAFC),
                               ],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
                             borderRadius: BorderRadius.circular(30),
                             border: Border.all(
-                              color: Colors.white.withOpacity(0.2),
+                              color: Colors.grey[200]!,
                               width: 1.5,
                             ),
                             boxShadow: [
@@ -165,10 +165,10 @@ class _WalletScreenState extends State<WalletScreen>
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
                                 children: [
-                                  const Text(
+                                  Text(
                                     'Total Balance',
                                     style: TextStyle(
-                                      color: Colors.white70,
+                                      color: Colors.grey[600],
                                       fontSize: 16,
                                       fontWeight: FontWeight.w500,
                                     ),
@@ -186,10 +186,10 @@ class _WalletScreenState extends State<WalletScreen>
                                         vertical: 6,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: Colors.white.withOpacity(0.1),
+                                        color: Colors.black.withOpacity(0.05),
                                         borderRadius: BorderRadius.circular(20),
                                         border: Border.all(
-                                          color: Colors.white.withOpacity(0.2),
+                                          color: Colors.black.withOpacity(0.1),
                                           width: 1,
                                         ),
                                       ),
@@ -199,14 +199,14 @@ class _WalletScreenState extends State<WalletScreen>
                                             _isBalanceHidden
                                                 ? Icons.visibility_off_outlined
                                                 : Icons.visibility_outlined,
-                                            color: Colors.white,
+                                            color: Colors.black,
                                             size: 16,
                                           ),
                                           const SizedBox(width: 4),
                                           Text(
                                             _isBalanceHidden ? 'Show' : 'Hide',
                                             style: const TextStyle(
-                                              color: Colors.white,
+                                              color: Colors.black,
                                               fontSize: 12,
                                             ),
                                           ),
@@ -223,7 +223,7 @@ class _WalletScreenState extends State<WalletScreen>
                                   const Text(
                                     '\$',
                                     style: TextStyle(
-                                      color: Colors.white,
+                                      color: Colors.black,
                                       fontSize: 24,
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -231,7 +231,7 @@ class _WalletScreenState extends State<WalletScreen>
                                   Text(
                                     _isBalanceHidden ? '****' : '0.00',
                                     style: const TextStyle(
-                                      color: Colors.white,
+                                      color: Colors.black,
                                       fontSize: 48,
                                       fontWeight: FontWeight.bold,
                                       height: 1,
@@ -280,15 +280,15 @@ class _WalletScreenState extends State<WalletScreen>
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               colors: [
-                                Colors.white.withOpacity(0.1),
-                                Colors.white.withOpacity(0.05),
+                                Colors.white,
+                                const Color(0xFFF8FAFC),
                               ],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
                             borderRadius: BorderRadius.circular(30),
                             border: Border.all(
-                              color: Colors.white.withOpacity(0.2),
+                              color: Colors.grey[300]!,
                               width: 1.5,
                             ),
                           ),
@@ -298,7 +298,7 @@ class _WalletScreenState extends State<WalletScreen>
                               const Text(
                                 'WOOP Price',
                                 style: TextStyle(
-                                  color: Colors.white,
+                                  color: Colors.black,
                                   fontSize: 20,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -309,7 +309,7 @@ class _WalletScreenState extends State<WalletScreen>
                                   Text(
                                     '\$5.20',
                                     style: TextStyle(
-                                      color: Colors.white.withOpacity(0.9),
+                                      color: Colors.black.withOpacity(0.9),
                                       fontSize: 32,
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -404,15 +404,15 @@ class _WalletScreenState extends State<WalletScreen>
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               colors: [
-                                Colors.white.withOpacity(0.1),
-                                Colors.white.withOpacity(0.05),
+                                Colors.white,
+                                const Color(0xFFF8FAFC),
                               ],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
                             borderRadius: BorderRadius.circular(24),
                             border: Border.all(
-                              color: Colors.white.withOpacity(0.1),
+                              color: Colors.grey[200]!,
                               width: 1,
                             ),
                           ),
@@ -448,14 +448,14 @@ class _WalletScreenState extends State<WalletScreen>
                                       style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w600,
-                                        color: Colors.white,
+                                        color: Colors.black,
                                       ),
                                     ),
                                     Text(
                                       'WOOP',
                                       style: TextStyle(
                                         fontSize: 14,
-                                        color: Colors.white.withOpacity(0.7),
+                                        color: Colors.black.withOpacity(0.7),
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
@@ -512,32 +512,32 @@ class _WalletScreenState extends State<WalletScreen>
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  Colors.white.withOpacity(0.15),
-                  Colors.white.withOpacity(0.05),
+                  Colors.white,
+                  const Color(0xFFF8FAFC),
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.grey[300]!,
                 width: 1,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
+                  color: Colors.black.withOpacity(0.05),
                   blurRadius: 10,
                   offset: const Offset(0, 5),
                 ),
               ],
             ),
-            child: Icon(icon, color: Colors.white, size: 24),
+            child: Icon(icon, color: Colors.black, size: 24),
           ),
           const SizedBox(height: 8),
           Text(
             label,
             style: const TextStyle(
-              color: Colors.white,
+              color: Colors.black,
               fontSize: 14,
               fontWeight: FontWeight.w500,
             ),
@@ -558,7 +558,7 @@ class _WalletScreenState extends State<WalletScreen>
         border: Border.all(
           color: isSelected
               ? const Color(0xFF1A1A1A)
-              : Colors.white.withOpacity(0.2),
+              : Colors.grey[300]!,
           width: 1,
         ),
       ),
@@ -567,7 +567,7 @@ class _WalletScreenState extends State<WalletScreen>
         style: TextStyle(
           color: isSelected
               ? const Color(0xFF1A1A1A)
-              : Colors.white.withOpacity(0.7),
+              : Colors.grey[600],
           fontSize: 14,
           fontWeight: FontWeight.w500,
         ),

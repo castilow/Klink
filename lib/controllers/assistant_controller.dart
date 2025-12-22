@@ -22,6 +22,117 @@ class AssistantController extends GetxController {
   // Protección contra múltiples llamadas simultáneas
   bool _isProcessing = false;
 
+  /// Pregunta al asistente con imagen y guarda en Firestore
+  Future<String?> askAssistantWithImage(String question, String imageBase64) async {
+    // Protección contra múltiples llamadas simultáneas
+    if (_isProcessing) {
+      debugPrint('⚠️ AssistantController.askAssistantWithImage: Ya hay una petición en proceso, ignorando...');
+      return null;
+    }
+    
+    _isProcessing = true;
+    try {
+      debugPrint('🟢 AssistantController.askAssistantWithImage: Iniciando con pregunta y imagen');
+      isLoading.value = true;
+      isTyping.value = true;
+      
+      final currentUser = AuthController.instance.currentUser;
+      debugPrint('🟢 AssistantController.askAssistantWithImage: Usuario actual: ${currentUser.userId}');
+      
+      // Marcar al asistente como "escribiendo"
+      await _setAssistantTypingStatus(true, currentUser.userId);
+      debugPrint('🟢 AssistantController.askAssistantWithImage: Estado de escritura actualizado');
+      
+      // Agregar pregunta al historial local
+      conversationHistory.add({
+        'role': 'user',
+        'content': question,
+      });
+      debugPrint('🟢 AssistantController.askAssistantWithImage: Historial actualizado, total: ${conversationHistory.length}');
+      
+      // Obtener respuesta de ChatGPT con imagen
+      debugPrint('🟢 AssistantController.askAssistantWithImage: Llamando a ChatGPTApi.sendMessage con imagen...');
+      final response = await ChatGPTApi.sendMessage(
+        message: question.isNotEmpty ? question : '¿Qué ves en esta imagen?',
+        conversationHistory: conversationHistory.take(10).toList(),
+        imageBase64: imageBase64,
+      );
+      debugPrint('🟢 AssistantController.askAssistantWithImage: Respuesta recibida de ChatGPTApi');
+      
+      // Desmarcar al asistente como "escribiendo"
+      await _setAssistantTypingStatus(false, currentUser.userId);
+      isTyping.value = false;
+      
+      if (response != null && response.isNotEmpty) {
+        // Agregar respuesta al historial local
+        conversationHistory.add({
+          'role': 'assistant',
+          'content': response,
+        });
+        
+        lastResponse.value = response;
+        
+        // Guardar respuesta del asistente en Firestore
+        final assistantMessage = Message(
+          msgId: AppHelper.generateID,
+          senderId: assistantUserId,
+          type: MessageType.text,
+          textMsg: response,
+        );
+        
+        await MessageApi.sendAssistantMessage(
+          message: assistantMessage,
+          receiver: currentUser,
+        );
+        debugPrint('🟢 AssistantController.askAssistantWithImage: Mensaje del asistente guardado exitosamente');
+        
+        return response;
+      } else {
+        debugPrint('⚠️ AssistantController.askAssistantWithImage: Respuesta vacía o nula');
+        final errorMessage = Message(
+          msgId: AppHelper.generateID,
+          senderId: assistantUserId,
+          type: MessageType.text,
+          textMsg: response ?? 'Lo siento, no pude procesar tu solicitud.',
+        );
+        
+        await MessageApi.sendAssistantMessage(
+          message: errorMessage,
+          receiver: currentUser,
+        );
+        
+        return response;
+      }
+    } catch (e, stackTrace) {
+      debugPrint('❌ AssistantController.askAssistantWithImage: Error capturado: $e');
+      debugPrint('❌ AssistantController.askAssistantWithImage: StackTrace: $stackTrace');
+      await _setAssistantTypingStatus(false, AuthController.instance.currentUser.userId);
+      isTyping.value = false;
+      
+      final errorMsg = 'Ocurrió un error al analizar la imagen. Por favor, inténtalo más tarde.';
+      
+      final currentUser = AuthController.instance.currentUser;
+      final errorMessage = Message(
+        msgId: AppHelper.generateID,
+        senderId: assistantUserId,
+        type: MessageType.text,
+        textMsg: errorMsg,
+      );
+      
+      await MessageApi.sendAssistantMessage(
+        message: errorMessage,
+        receiver: currentUser,
+      );
+      
+      return errorMsg;
+    } finally {
+      _isProcessing = false;
+      isLoading.value = false;
+      isTyping.value = false;
+      debugPrint('🟢 AssistantController.askAssistantWithImage: Finalizado');
+    }
+  }
+
   /// Pregunta al asistente y guarda en Firestore
   Future<String?> askAssistant(String question) async {
     // Protección contra múltiples llamadas simultáneas

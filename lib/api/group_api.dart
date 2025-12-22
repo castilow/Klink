@@ -33,6 +33,7 @@ abstract class GroupApi {
     required bool isBroadcast,
   }) async {
     try {
+      debugPrint('🟢 [GROUP_API] Iniciando creación de grupo: $name');
       final User admin = AuthController.instance.currentUser;
       String photoUrl = '';
 
@@ -40,12 +41,15 @@ abstract class GroupApi {
 
       // Check image file
       if (photoFile != null) {
+        debugPrint('🟢 [GROUP_API] Subiendo foto del grupo...');
         photoUrl =
             await AppHelper.uploadFile(file: photoFile, userId: admin.userId);
+        debugPrint('🟢 [GROUP_API] Foto subida: $photoUrl');
       }
 
       // Generate the Group ID.
       final String groupId = AppHelper.generateID;
+      debugPrint('🟢 [GROUP_API] GroupId generado: $groupId');
 
       // Created group message
       final Message createdGroupMsg = Message(
@@ -67,16 +71,22 @@ abstract class GroupApi {
         isBroadcast: isBroadcast,
       );
 
-      // Create the new Group
-      await Future.wait([
-        // Save new group
-        groupsRef.doc(groupId).set(group.toMap()),
-        // Save group message
-        groupsRef
-            .doc(groupId)
-            .collection('Messages')
-            .add(createdGroupMsg.toMap(isGroup: true)),
-      ]);
+      // Create the new Group (primero creamos el grupo)
+      debugPrint('🟢 [GROUP_API] Guardando grupo en Firestore...');
+      debugPrint('🟢 [GROUP_API] Nombre del grupo: "${group.name}"');
+      final groupMap = group.toMap();
+      debugPrint('🟢 [GROUP_API] Datos del grupo a guardar: name="${groupMap['name']}"');
+      await groupsRef.doc(groupId).set(groupMap);
+      debugPrint('🟢 [GROUP_API] Grupo guardado en Firestore exitosamente');
+      
+      // Luego creamos el mensaje (después de que el grupo exista)
+      debugPrint('🟢 [GROUP_API] Guardando mensaje inicial del grupo...');
+      await groupsRef
+          .doc(groupId)
+          .collection('Messages')
+          .doc(createdGroupMsg.msgId)
+          .set(createdGroupMsg.toMap(isGroup: true));
+      debugPrint('🟢 [GROUP_API] Mensaje inicial guardado');
 
       // Update message
       final Message addedMemberMsg = Message(
@@ -85,7 +95,9 @@ abstract class GroupApi {
         textMsg: UpdateType.added.name,
         groupUpdate: GroupUpdate(
           members: members.length,
-          memberId: members.length > 1 ? '' : members.first.userId,
+          memberId: members.isEmpty 
+              ? '' 
+              : (members.length > 1 ? '' : members.first.userId),
         ),
         senderId: admin.userId,
       );
@@ -94,14 +106,47 @@ abstract class GroupApi {
       group.lastMsg = addedMemberMsg;
 
       // Save last message
-      MessageApi.saveGroupMessage(group);
+      debugPrint('🟢 [GROUP_API] Guardando último mensaje...');
+      await MessageApi.saveGroupMessage(group);
+      debugPrint('🟢 [GROUP_API] Último mensaje guardado');
 
-      // Create chat entry only for the current user (admin)
-      await ChatApi.saveGroupChat(
-        userId: admin.userId,
-        groupId: group.groupId,
-        message: group.lastMsg!,
+      // Create chat entries for all members (including admin) so they can see the group
+      debugPrint('🟢 [GROUP_API] Guardando entradas de chat para todos los miembros...');
+      debugPrint('🟢 [GROUP_API] Total miembros: ${members.length + 1} (admin + ${members.length} miembros)');
+      List<Future<void>> chatFutures = [];
+      
+      // Add chat entry for admin
+      debugPrint('🟢 [GROUP_API] Creando entrada de chat para admin: ${admin.userId}');
+      chatFutures.add(
+        ChatApi.saveGroupChat(
+          userId: admin.userId,
+          groupId: group.groupId,
+          message: group.lastMsg!,
+        ).then((_) {
+          debugPrint('✅ [GROUP_API] Entrada de chat creada para admin: ${admin.userId}');
+        }).catchError((e) {
+          debugPrint('❌ [GROUP_API] Error creando entrada de chat para admin: $e');
+        }),
       );
+      
+      // Add chat entries for all other members
+      for (final member in members) {
+        debugPrint('🟢 [GROUP_API] Creando entrada de chat para miembro: ${member.userId} (${member.fullname})');
+        chatFutures.add(
+          ChatApi.saveGroupChat(
+            userId: member.userId,
+            groupId: group.groupId,
+            message: group.lastMsg!,
+          ).then((_) {
+            debugPrint('✅ [GROUP_API] Entrada de chat creada para miembro: ${member.userId} (${member.fullname})');
+          }).catchError((e) {
+            debugPrint('❌ [GROUP_API] Error creando entrada de chat para miembro ${member.userId}: $e');
+          }),
+        );
+      }
+      
+      await Future.wait(chatFutures);
+      debugPrint('🟢 [GROUP_API] Entradas de chat guardadas para ${chatFutures.length} miembros');
 
       // Check broadcast param
       if (!isBroadcast) {
@@ -124,6 +169,7 @@ abstract class GroupApi {
       }
 
       // Close processing dialog
+      debugPrint('🟢 [GROUP_API] Creación de grupo completada exitosamente');
       DialogHelper.closeDialog();
 
       DialogHelper.showSnackbarMessage(
@@ -131,7 +177,9 @@ abstract class GroupApi {
         isBroadcast ? "create_broadcast_success".tr : "create_group_success".tr,
       );
       return true;
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('🔴 [GROUP_API] Error al crear grupo: $e');
+      debugPrint('🔴 [GROUP_API] Stack trace: $stackTrace');
       DialogHelper.closeDialog();
       DialogHelper.showSnackbarMessage(SnackMsgType.error, e.toString());
       return false;
@@ -220,21 +268,93 @@ abstract class GroupApi {
     }
   }
 
+  // Ensure chat entry exists for current user in a group
+  static Future<void> ensureGroupChatEntry(String groupId) async {
+    try {
+      final User currentUser = AuthController.instance.currentUser;
+      
+      // Check if chat entry already exists
+      final chatDoc = await FirebaseFirestore.instance
+          .collection('Users/${currentUser.userId}/Chats')
+          .doc(groupId)
+          .get();
+      
+      // If chat entry doesn't exist, create it
+      if (!chatDoc.exists) {
+        // Get group data
+        final groupDoc = await groupsRef.doc(groupId).get();
+        if (groupDoc.exists) {
+          final groupData = groupDoc.data()!;
+          
+          // Get the last message or create a default one
+          Message? lastMsg;
+          try {
+            final messagesSnapshot = await groupsRef
+                .doc(groupId)
+                .collection('Messages')
+                .orderBy('sentAt', descending: true)
+                .limit(1)
+                .get();
+            
+            if (messagesSnapshot.docs.isNotEmpty) {
+              lastMsg = Message.fromMap(
+                data: messagesSnapshot.docs.first.data(),
+                isGroup: true,
+              );
+            }
+          } catch (e) {
+            debugPrint('Error getting last message: $e');
+          }
+          
+          // Create a default message if no message exists
+          if (lastMsg == null) {
+            lastMsg = Message(
+              msgId: AppHelper.generateID,
+              type: MessageType.groupUpdate,
+              textMsg: UpdateType.created.name,
+              senderId: groupData['createdBy'] ?? currentUser.userId,
+            );
+          }
+          
+          // Create chat entry
+          await ChatApi.saveGroupChat(
+            userId: currentUser.userId,
+            groupId: groupId,
+            message: lastMsg,
+          );
+          
+          debugPrint('✅ Chat entry created for group: $groupId');
+        }
+      }
+    } catch (e) {
+      debugPrint('Error ensuring group chat entry: $e');
+    }
+  }
+
   static Stream<List<Group>> getUserGroups(String userId) {
     final User currentUser = AuthController.instance.currentUser;
+
+    debugPrint('📋 [GROUP_API] getUserGroups iniciado para userId: $userId');
 
     return groupsRef
         .where('members', arrayContains: userId)
         .orderBy('updatedAt', descending: true)
         .snapshots()
         .asyncMap((event) async {
+      debugPrint('📋 [GROUP_API] getUserGroups: Recibidos ${event.docs.length} documentos del stream');
+      
       List<Group> groups = [];
       // Handle the group data
       for (final doc in event.docs) {
         final Map<String, dynamic> data = doc.data();
+        final String groupId = doc.id;
         final bool isBroadcast = data['isBroadcast'] ?? false;
         final String createdBy = data['createdBy'];
         final List<String> memberIds = List<String>.from(data['members'] ?? []);
+        
+        debugPrint('📋 [GROUP_API] Procesando grupo: $groupId, nombre="${data['name']}", isBroadcast=$isBroadcast, miembros=${memberIds.length}');
+        debugPrint('📋 [GROUP_API] userId actual: $userId, está en miembros: ${memberIds.contains(userId)}');
+        
         List<Future<User?>> futures = [];
         List<User?> users = [];
 
@@ -244,6 +364,8 @@ abstract class GroupApi {
           if (createdBy == currentUser.userId) {
             futures =
                 memberIds.map((userId) => UserApi.getUser(userId)).toList();
+          } else {
+            debugPrint('📋 [GROUP_API] Grupo $groupId es broadcast y el usuario no es el creador, omitiendo');
           }
         } else {
           futures = memberIds.map((userId) => UserApi.getUser(userId)).toList();
@@ -260,22 +382,33 @@ abstract class GroupApi {
         final Group group = Group.fromMap(data: doc.data(), members: members);
 
         // Check removed member to hide the group if not admin
-        final bool isValid = !group.isRemoved(currentUser.userId) ||
-            group.isRemoved(currentUser.userId) &&
-                group.isAdmin(currentUser.userId);
+        final bool isRemoved = group.isRemoved(currentUser.userId);
+        final bool isAdmin = group.isAdmin(currentUser.userId);
+        final bool isValid = !isRemoved || (isRemoved && isAdmin);
+
+        debugPrint('📋 [GROUP_API] Grupo $groupId: isRemoved=$isRemoved, isAdmin=$isAdmin, isValid=$isValid');
 
         if (isValid) {
           // Check broadcast list
           if (isBroadcast) {
             if (createdBy == currentUser.userId) {
+              debugPrint('📋 [GROUP_API] Agregando broadcast $groupId a la lista');
               groups.add(Group.fromMap(data: doc.data(), members: members));
             }
           } else {
+            debugPrint('📋 [GROUP_API] Agregando grupo $groupId a la lista');
             groups.add(Group.fromMap(data: doc.data(), members: members));
           }
+        } else {
+          debugPrint('📋 [GROUP_API] Grupo $groupId no es válido (usuario removido y no es admin), omitiendo');
         }
       }
+      
+      debugPrint('📋 [GROUP_API] getUserGroups: Total grupos válidos: ${groups.length}');
       return groups;
+    }).handleError((error) {
+      debugPrint('❌ [GROUP_API] Error en getUserGroups: $error');
+      return <Group>[];
     });
   }
 
@@ -323,7 +456,20 @@ abstract class GroupApi {
       data['updatedBy'] = admin.userId;
 
       // Save last message
-      MessageApi.saveGroupMessage(group, data: data);
+      await MessageApi.saveGroupMessage(group, data: data);
+
+      // Create chat entries for new members so they can see the group
+      List<Future<void>> chatFutures = [];
+      for (final member in newMembers) {
+        chatFutures.add(
+          ChatApi.saveGroupChat(
+            userId: member.userId,
+            groupId: group.groupId,
+            message: message,
+          ),
+        );
+      }
+      await Future.wait(chatFutures);
 
       // Check broadcast
       if (!isBroadcast) {

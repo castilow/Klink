@@ -48,8 +48,8 @@ class StoriesSection extends StatelessWidget {
       final totalItems = 1 + otherStories.length;
 
       return Container(
-        height: 110,
-        margin: const EdgeInsets.only(bottom: 10),
+        height: 90,
+        margin: const EdgeInsets.only(bottom: 0),
         child: AnimationLimiter(
           child: ListView.builder(
             scrollDirection: Axis.horizontal,

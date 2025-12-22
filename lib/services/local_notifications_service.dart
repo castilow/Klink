@@ -44,7 +44,48 @@ class LocalNotificationsService {
       onDidReceiveBackgroundNotificationResponse: _onBackgroundTap,
     );
 
+    // Crear canales de notificación para Android
+    await _createNotificationChannels();
+
     _initialized = true;
+  }
+
+  /// Crea los canales de notificación para Android
+  static Future<void> _createNotificationChannels() async {
+    // Canal para mensajes
+    const AndroidNotificationChannel messagesChannel = AndroidNotificationChannel(
+      'messages_channel',
+      'Mensajes',
+      description: 'Notificaciones de mensajes',
+      importance: Importance.high,
+      playSound: true,
+      enableVibration: true,
+    );
+
+    // Canal para llamadas (prioridad máxima)
+    const AndroidNotificationChannel callsChannel = AndroidNotificationChannel(
+      'calls_channel',
+      'Llamadas',
+      description: 'Notificaciones de llamadas entrantes',
+      importance: Importance.max, // Prioridad máxima para llamadas
+      playSound: true,
+      enableVibration: true,
+    );
+
+    // Crear los canales
+    await _plugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(messagesChannel);
+
+    await _plugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(callsChannel);
+
+    if (kDebugMode) {
+      debugPrint('📱 Canales de notificación creados: messages_channel, calls_channel');
+    }
   }
 
   /// Muestra una notificación local simple
@@ -99,6 +140,12 @@ class LocalNotificationsService {
           photoUrl: (data['senderPhoto'] ?? '').toString(),
         );
         await RoutesHelper.toMessages(isGroup: false, user: user);
+      } else if (type == 'call') {
+        // Para llamadas, el sistema maneja la notificación push
+        // Pero podemos registrar el tap aquí si es necesario
+        if (kDebugMode) {
+          debugPrint('📞 Notificación de llamada tocada');
+        }
       }
     } catch (e) {
       if (kDebugMode) {

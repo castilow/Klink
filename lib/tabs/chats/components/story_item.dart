@@ -95,16 +95,18 @@ class StoryItem extends StatelessWidget {
                   ),
               ],
             ),
-            const SizedBox(height: 6),
-            Text(
-              isMe ? 'Your Story' : name,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
+            const SizedBox(height: 5),
+            Flexible(
+              child: Text(
+                isMe ? 'Your Story' : name,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
             ),
           ],
         ),

@@ -116,24 +116,65 @@ class _VideosScreenState extends State<VideosScreen> with WidgetsBindingObserver
       return _buildEmptyState(context, controller, isDarkMode);
     }
 
-    return PageView.builder(
-      scrollDirection: Axis.vertical,
-      itemCount: controller.videos.length,
-      onPageChanged: (index) {
-        controller.onPageChanged(index);
-        // Asegurar que el video se reproduzca cuando cambiamos de página
-        Future.delayed(const Duration(milliseconds: 200), () {
-          controller.playCurrentVideoIfInSection();
-        });
-      },
-      itemBuilder: (context, index) {
-        final video = controller.videos[index];
-        return _VideoPlayerWidget(
-          video: video,
-          controller: controller,
-          isDarkMode: isDarkMode,
-        );
-      },
+    return Stack(
+      children: [
+        PageView.builder(
+          scrollDirection: Axis.vertical,
+          itemCount: controller.videos.length,
+          onPageChanged: (index) {
+            controller.onPageChanged(index);
+            // Asegurar que el video se reproduzca cuando cambiamos de página
+            Future.delayed(const Duration(milliseconds: 200), () {
+              controller.playCurrentVideoIfInSection();
+            });
+          },
+          itemBuilder: (context, index) {
+            final video = controller.videos[index];
+            return _VideoPlayerWidget(
+              video: video,
+              controller: controller,
+              isDarkMode: isDarkMode,
+            );
+          },
+        ),
+        // Back Button
+        Positioned(
+          top: 0,
+          left: 0,
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.only(left: 16.0, top: 12.0),
+              child: GestureDetector(
+                onTap: () {
+                  // Pause video before leaving
+                  controller.pauseAllVideos();
+                  Get.back();
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white.withOpacity(0.1), width: 0.5),
+                  ),
+                  child: const Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    color: Colors.white,
+                    size: 22,
+                    shadows: [
+                      Shadow(
+                        color: Colors.black45,
+                        blurRadius: 4,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -199,7 +240,7 @@ class _VideosScreenState extends State<VideosScreen> with WidgetsBindingObserver
                 ),
                 const SizedBox(height: 48),
                 GestureDetector(
-                  onTap: () => _showUploadVideoModal(context, controller, isDarkMode),
+                  onTap: () => showUploadVideoModal(context, controller, isDarkMode),
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
                     decoration: BoxDecoration(
@@ -493,13 +534,13 @@ class _VideoPlayerWidgetState extends State<_VideoPlayerWidget> with SingleTicke
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.black.withOpacity(0.3),
+                    Colors.black.withOpacity(0.2), // Reduced top opacity
                     Colors.transparent,
                     Colors.transparent,
-                    Colors.black.withOpacity(0.6),
-                    Colors.black.withOpacity(0.9),
+                    Colors.black.withOpacity(0.4), // Reduced bottom opacity
+                    Colors.black.withOpacity(0.7), // Reduced bottom opacity
                   ],
-                  stops: const [0.0, 0.2, 0.6, 0.85, 1.0],
+                  stops: const [0.0, 0.2, 0.7, 0.9, 1.0], // Pushed gradient lower
                 ),
               ),
             ),
@@ -535,97 +576,90 @@ class _VideoPlayerWidgetState extends State<_VideoPlayerWidget> with SingleTicke
                             child: Row(
                               children: [
                                 Container(
-                                  padding: const EdgeInsets.all(2),
-                                  decoration: BoxDecoration(
+                                  padding: const EdgeInsets.all(1),
+                                  decoration: const BoxDecoration(
                                     shape: BoxShape.circle,
-                                    border: Border.all(color: Colors.white, width: 1.5),
+                                    // Removed white border, purely image
                                   ),
                                   child: CachedCircleAvatar(
                                     imageUrl: widget.video.user?.photoUrl ?? '',
-                                    radius: 18,
+                                    radius: 16, // Smaller radius
                                   ),
                                 ),
-                                const SizedBox(width: 12),
+                                const SizedBox(width: 10),
                                 Text(
                                   widget.video.user?.fullname ?? 'Usuario',
                                   style: const TextStyle(
                                     color: Colors.white,
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15, // Reduced from 17
+                                    fontWeight: FontWeight.w600, // Slightly less bold
                                     shadows: [
                                       Shadow(
-                                        color: Colors.black45,
+                                        color: Colors.black26,
                                         offset: Offset(0, 1),
                                         blurRadius: 2,
                                       ),
                                     ],
                                   ),
                                 ),
-                                const SizedBox(width: 8),
+                                const SizedBox(width: 6),
                                 if (true) // TODO: Check verified status
                                   const Icon(
                                     Icons.verified,
                                     color: Color(0xFF00E5FF),
-                                    size: 16,
+                                    size: 14, // Smaller
                                   ),
                               ],
                             ),
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 8), // Reduced spacing
                           if (widget.video.caption != null && widget.video.caption!.isNotEmpty)
                             Text(
                               widget.video.caption!,
                               style: const TextStyle(
                                 color: Colors.white,
-                                fontSize: 15,
-                                height: 1.3,
+                                fontSize: 13, // Reduced from 15
+                                height: 1.2,
                               ),
-                              maxLines: 3,
+                              maxLines: 2, // Limit to 2 lines for compactness
                               overflow: TextOverflow.ellipsis,
                             ),
-                          const SizedBox(height: 12),
-                          // Music/Audio indicator
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(
-                                  Icons.music_note_rounded,
-                                  color: Colors.white,
-                                  size: 14,
-                                ),
-                                const SizedBox(width: 8),
-                                SizedBox(
-                                  width: 120,
-                                  height: 20,
-                                  child: Marquee(
-                                    text: 'Sonido original - ${widget.video.user?.fullname ?? "Usuario"}   ',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                    scrollAxis: Axis.horizontal,
-                                    crossAxisAlignment: CrossAxisAlignment.center,
-                                    blankSpace: 20.0,
-                                    velocity: 30.0,
-                                    pauseAfterRound: const Duration(seconds: 1),
-                                    startPadding: 0.0,
-                                    accelerationDuration: const Duration(seconds: 1),
-                                    accelerationCurve: Curves.linear,
-                                    decelerationDuration: const Duration(milliseconds: 500),
-                                    decelerationCurve: Curves.easeOut,
+                          const SizedBox(height: 8), // Reduced spacing
+                          // Music/Audio indicator (Minimalist)
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.music_note_rounded,
+                                color: Colors.white70,
+                                size: 12,
+                              ),
+                              const SizedBox(width: 6),
+                              SizedBox(
+                                width: 120,
+                                height: 16, // Reduced height
+                                child: Marquee(
+                                  text: 'Sonido original - ${widget.video.user?.fullname ?? "Usuario"}   ',
+                                  style: const TextStyle(
+                                    color: Colors.white70, // Less prominent
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w400,
                                   ),
+                                  scrollAxis: Axis.horizontal,
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  blankSpace: 20.0,
+                                  velocity: 30.0,
+                                  pauseAfterRound: const Duration(seconds: 1),
+                                  startPadding: 0.0,
+                                  accelerationDuration: const Duration(seconds: 1),
+                                  accelerationCurve: Curves.linear,
+                                  decelerationDuration: const Duration(milliseconds: 500),
+                                  decelerationCurve: Curves.easeOut,
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 12),
                         ],
                       ),
                     ),
@@ -645,7 +679,7 @@ class _VideoPlayerWidgetState extends State<_VideoPlayerWidget> with SingleTicke
                             widget.controller.toggleLike(widget.video.id);
                           },
                         ),
-                        const SizedBox(height: 20), // Increased spacing
+                        const SizedBox(height: 12), // Reduced spacing
                         _GlassActionButton(
                           icon: IconlyLight.chat,
                           label: _formatCount(widget.video.comments),
@@ -654,7 +688,7 @@ class _VideoPlayerWidgetState extends State<_VideoPlayerWidget> with SingleTicke
                             _showCommentsModal(context, widget.controller, widget.video.id);
                           },
                         ),
-                        const SizedBox(height: 20), // Increased spacing
+                        const SizedBox(height: 12), // Reduced spacing
                         _GlassActionButton(
                           icon: IconlyLight.send,
                           label: _formatCount(widget.video.shares),
@@ -663,7 +697,7 @@ class _VideoPlayerWidgetState extends State<_VideoPlayerWidget> with SingleTicke
                             _showShareModal(context, widget.controller, widget.video.id);
                           },
                         ),
-                        const SizedBox(height: 20), // Increased spacing
+                        const SizedBox(height: 12), // Reduced spacing
                         _GlassActionButton(
                           icon: IconlyLight.moreCircle,
                           onTap: () {
@@ -671,10 +705,10 @@ class _VideoPlayerWidgetState extends State<_VideoPlayerWidget> with SingleTicke
                             _showVideoOptionsMenu(context, widget.video, widget.controller);
                           },
                         ),
-                        const SizedBox(height: 40), // Adjusted bottom spacing
+                        const SizedBox(height: 24), // Reduced spacing before disc
                         // Rotating Disc Animation
                         _RotatingDisc(imageUrl: widget.video.user?.photoUrl),
-                        const SizedBox(height: 20), // Reduced bottom margin
+                        const SizedBox(height: 12), // Reduced bottom margin
                       ],
                     ),
                   ],
@@ -766,27 +800,27 @@ class _GlassActionButtonState extends State<_GlassActionButton> with SingleTicke
               child: Icon(
                 widget.icon,
                 color: widget.iconColor ?? Colors.white,
-                size: 32, // Increased slightly from previous reduced size, but no padding
+                size: 28, // Reduced from 32
                 shadows: const [
                   Shadow(
-                    color: Colors.black45,
-                    blurRadius: 4,
-                    offset: Offset(0, 2),
+                    color: Colors.black26, // Softer shadow
+                    blurRadius: 2,
+                    offset: Offset(0, 1),
                   ),
                 ],
               ),
             ),
             if (widget.label != null) ...[
-              const SizedBox(height: 4),
+              const SizedBox(height: 2), // Tighter spacing
               Text(
                 widget.label!,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 13,
+                  fontSize: 12, // Reduced from 13
                   fontWeight: FontWeight.w600,
                   shadows: [
                     Shadow(
-                      color: Colors.black45,
+                      color: Colors.black26,
                       blurRadius: 2,
                       offset: Offset(0, 1),
                     ),
@@ -833,12 +867,12 @@ class _RotatingDiscState extends State<_RotatingDisc> with SingleTickerProviderS
     return RotationTransition(
       turns: _controller,
       child: Container(
-        width: 48,
-        height: 48,
+        width: 40, // Reduced from 48
+        height: 40,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: const Color(0xFF222222),
-          border: Border.all(color: Colors.grey[800]!, width: 8),
+          color: Colors.transparent, // Removed heavy background
+          border: Border.all(color: Colors.white.withOpacity(0.2), width: 1.5), // refined border
           image: widget.imageUrl != null
               ? DecorationImage(
                   image: NetworkImage(widget.imageUrl!),
@@ -851,7 +885,7 @@ class _RotatingDiscState extends State<_RotatingDisc> with SingleTickerProviderS
                 child: Icon(
                   Icons.music_note,
                   color: Colors.white,
-                  size: 20,
+                  size: 18,
                 ),
               )
             : null,
@@ -870,7 +904,7 @@ String _formatCount(int count) {
   }
 }
 
-void _showUploadVideoModal(
+void showUploadVideoModal(
   BuildContext context,
   VideosController controller,
   bool isDarkMode,

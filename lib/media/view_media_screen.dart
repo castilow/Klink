@@ -6,6 +6,7 @@ import 'package:chat_messenger/components/custom_appbar.dart';
 import 'package:chat_messenger/components/loading_indicator.dart';
 import 'package:chat_messenger/helpers/app_helper.dart';
 import 'package:video_player/video_player.dart';
+import 'package:audio_session/audio_session.dart';
 
 class ViewMediaScreen extends StatefulWidget {
   const ViewMediaScreen({
@@ -29,6 +30,28 @@ class _ViewMediaScreenState extends State<ViewMediaScreen> {
   void _loadVideo() async {
     // Check video
     if (!widget.isVideo) return;
+
+    // Configurar audio para usar el altavoz principal (no el auricular)
+    try {
+      final session = await AudioSession.instance;
+      await session.configure(const AudioSessionConfiguration(
+        avAudioSessionCategory: AVAudioSessionCategory.playback,
+        avAudioSessionCategoryOptions: AVAudioSessionCategoryOptions.defaultToSpeaker,
+        avAudioSessionMode: AVAudioSessionMode.moviePlayback,
+        avAudioSessionRouteSharingPolicy: AVAudioSessionRouteSharingPolicy.defaultPolicy,
+        avAudioSessionSetActiveOptions: AVAudioSessionSetActiveOptions.none,
+        androidAudioAttributes: AndroidAudioAttributes(
+          contentType: AndroidAudioContentType.movie,
+          flags: AndroidAudioFlags.none,
+          usage: AndroidAudioUsage.media,
+        ),
+        androidAudioFocusGainType: AndroidAudioFocusGainType.gain,
+        androidWillPauseWhenDucked: false,
+      ));
+      debugPrint('✅ Audio configurado para usar altavoz principal en video');
+    } catch (e) {
+      debugPrint('⚠️ Error configurando audio: $e');
+    }
 
     _videoController =
         VideoPlayerController.networkUrl(Uri.parse(widget.fileUrl));

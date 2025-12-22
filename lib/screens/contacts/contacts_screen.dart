@@ -8,6 +8,8 @@ import 'package:chat_messenger/models/user.dart';
 import 'package:chat_messenger/routes/app_routes.dart';
 import 'package:chat_messenger/helpers/routes_helper.dart';
 import 'package:chat_messenger/screens/contacts/controllers/contact_controller.dart';
+import 'package:chat_messenger/config/theme_config.dart';
+import 'package:chat_messenger/theme/app_theme.dart';
 import 'package:get/get.dart';
 
 import 'components/contact_card.dart';
@@ -17,7 +19,9 @@ class ContactsScreen extends GetView<ContactController> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isDarkMode = AppTheme.of(context).isDarkMode;
     return Scaffold(
+      backgroundColor: isDarkMode ? darkThemeBgColor : lightThemeBgColor,
       appBar: CustomAppBar(
         title: Text("contacts".tr),
         actions: [
@@ -54,9 +58,12 @@ class ContactsScreen extends GetView<ContactController> {
           },
         );
       }),
-      floatingActionButton: FloatingButton(
-        icon: IconlyBold.addUser,
-        onPress: () => Get.toNamed(AppRoutes.contactSearch),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 165),
+        child: FloatingButton(
+          icon: IconlyBold.addUser,
+          onPress: () => Get.toNamed(AppRoutes.contactSearch),
+        ),
       ),
     );
   }

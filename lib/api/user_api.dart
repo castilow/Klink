@@ -47,7 +47,17 @@ abstract class UserApi {
       // Get Firebase User Info:
       final String userId = firebaseUser.uid;
       final String email = firebaseUser.email ?? '';
-      final String deviceToken = await _firebaseMsg.getToken() ?? '';
+      
+      // Get device token (manejar error si APNS token no está disponible)
+      String deviceToken = '';
+      try {
+        deviceToken = await _firebaseMsg.getToken() ?? '';
+        debugPrint('✅ FCM token obtenido durante creación de perfil: ${deviceToken.isNotEmpty ? "OK" : "vacío"}');
+      } catch (e) {
+        debugPrint('⚠️ Error obteniendo FCM token durante creación de perfil (continuando sin token): $e');
+        // Continuar sin token, la app puede funcionar sin él
+        deviceToken = '';
+      }
 
       // Upload profile photo
       String photoUrl = '';
@@ -207,8 +217,16 @@ abstract class UserApi {
   static Future<void> updateUserInfo(User user) async {
     final firebaseUser = AuthController.instance.firebaseUser!;
 
-    // Get device token
-    final String deviceToken = await _firebaseMsg.getToken() ?? '';
+    // Get device token (manejar error si APNS token no está disponible)
+    String deviceToken = '';
+    try {
+      deviceToken = await _firebaseMsg.getToken() ?? '';
+      debugPrint('✅ FCM token obtenido: ${deviceToken.isNotEmpty ? "OK" : "vacío"}');
+    } catch (e) {
+      debugPrint('⚠️ Error obteniendo FCM token (continuando sin token): $e');
+      // Continuar sin token, la app puede funcionar sin él
+      deviceToken = '';
+    }
 
     var data = {
       'deviceToken': deviceToken,
@@ -226,8 +244,14 @@ abstract class UserApi {
 
     // Save data
     await updateUserData(userId: user.userId, data: data, isSet: true);
-    // Subscribe for Push Notifications
-    _firebaseMsg.subscribeToTopic('NOTIFY_USERS');
+    // Subscribe for Push Notifications (manejar error si APNS token no está disponible)
+    try {
+      await _firebaseMsg.subscribeToTopic('NOTIFY_USERS');
+      debugPrint('✅ Suscrito al topic NOTIFY_USERS');
+    } catch (e) {
+      debugPrint('⚠️ Error suscribiéndose al topic (continuando sin suscripción): $e');
+      // Continuar sin suscripción, la app puede funcionar sin ella
+    }
   }
 
   /// Update user push token specifically for FCM

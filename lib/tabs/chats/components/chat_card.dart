@@ -31,8 +31,13 @@ class ChatCard extends StatelessWidget {
     final bool isDarkMode = AppTheme.of(context).isDarkMode;
     final User user = chat.receiver!;
 
+    // Usar groupId si existe, sino userId
+    final chatKey = chat.groupId != null && chat.groupId!.isNotEmpty 
+        ? chat.groupId! 
+        : chat.receiver!.userId;
+    
     return Dismissible(
-      key: Key(chat.receiver!.userId),
+      key: Key(chatKey),
       direction: DismissDirection.endToStart,
       dismissThresholds: const {
         DismissDirection.endToStart: 0.7,
@@ -91,114 +96,128 @@ class ChatCard extends StatelessWidget {
           // Telegram style: 72px height typically, larger avatar
           height: 76, 
           padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: StreamBuilder<User>(
-            stream: UserApi.getUserUpdates(user.userId),
-            builder: (context, snapshot) {
-              updatedUser = snapshot.data;
-              final User receiver = updatedUser ?? user;
+          child: chat.groupId != null 
+            ? _buildGroupChatContent(context, user)
+            : StreamBuilder<User>(
+                stream: UserApi.getUserUpdates(user.userId),
+                builder: (context, snapshot) {
+                  updatedUser = snapshot.data;
+                  final User receiver = updatedUser ?? user;
 
-              // Check for active story
-              bool hasStory = false;
-              if (Get.isRegistered<StoryController>()) {
-                final StoryController storyController = Get.find();
-                hasStory = storyController.stories.any((s) => s.userId == receiver.userId);
-              }
+                  // Check for active story
+                  bool hasStory = false;
+                  if (Get.isRegistered<StoryController>()) {
+                    final StoryController storyController = Get.find();
+                    hasStory = storyController.stories.any((s) => s.userId == receiver.userId);
+                  }
 
-              return Row(
-                children: [
-                  Hero(
-                    tag: 'avatar_${receiver.userId}',
-                    child: Container(
-                      padding: hasStory ? const EdgeInsets.all(2) : EdgeInsets.zero,
-                      decoration: hasStory ? BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: Colors.blue, // WhatsApp-style blue indicator
-                          width: 2,
-                        ),
-                      ) : null,
-                      child: CachedCircleAvatar(
-                        imageUrl: receiver.photoUrl,
-                        radius: 28, // 56px diameter
-                        isOnline: receiver.isOnline,
-                        // If hasStory is true, we use the container border, so set this to null or keep for unread
-                        borderColor: null, 
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        border: Border(
-                          bottom: BorderSide(
-                            color: isDarkMode ? Colors.black : lightDividerColor,
-                            width: 0.5,
-                          ),
-                        ),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  receiver.fullname,
-                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.w700, // Bolder title
-                                    fontSize: 16,
-                                    height: 1.2,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                  maxLines: 1,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              SentTime(
-                                time: chat.isDeleted ? chat.updatedAt : chat.sentAt,
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 3),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Expanded(
-                                child: LastMessage(chat: chat, user: receiver),
-                              ),
-                              if (chat.isMuted) ...[
-                                const SizedBox(width: 4),
-                                const Icon(
-                                  Icons.volume_off,
-                                  color: greyColor,
-                                  size: 14,
-                                ),
-                              ],
-                              if (chat.unread > 0) ...[
-                                const SizedBox(width: 8),
-                                BadgeCount(
-                                  counter: chat.unread,
-                                  bgColor: primaryColor, // Telegram Blue badge
-                                ),
-                              ],
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              );
+              return _buildChatContent(context, receiver, hasStory);
             },
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildGroupChatContent(BuildContext context, User user) {
+    // For groups, use the user directly without StreamBuilder
+    return _buildChatContent(context, user, false);
+  }
+
+  Widget _buildChatContent(BuildContext context, User receiver, bool hasStory) {
+    final bool isDarkMode = AppTheme.of(context).isDarkMode;
+    
+    return Row(
+      children: [
+        Hero(
+          tag: 'avatar_${receiver.userId}',
+          child: Container(
+            padding: hasStory ? const EdgeInsets.all(2) : EdgeInsets.zero,
+            decoration: hasStory ? BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: Colors.blue, // WhatsApp-style blue indicator
+                width: 2,
+              ),
+            ) : null,
+            child: CachedCircleAvatar(
+              imageUrl: receiver.photoUrl,
+              radius: 28, // 56px diameter
+              isOnline: receiver.isOnline,
+              isGroup: chat.groupId != null, // Indicate if it's a group
+              // If hasStory is true, we use the container border, so set this to null or keep for unread
+              borderColor: null, 
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: isDarkMode ? Colors.black : lightDividerColor,
+                  width: 0.5,
+                ),
+              ),
+            ),
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        receiver.fullname,
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700, // Bolder title
+                          fontSize: 16,
+                          height: 1.2,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    SentTime(
+                      time: chat.isDeleted ? chat.updatedAt : chat.sentAt,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: LastMessage(chat: chat, user: receiver),
+                    ),
+                    if (chat.isMuted) ...[
+                      const SizedBox(width: 4),
+                      const Icon(
+                        Icons.volume_off,
+                        color: greyColor,
+                        size: 14,
+                      ),
+                    ],
+                    if (chat.unread > 0) ...[
+                      const SizedBox(width: 8),
+                      BadgeCount(
+                        counter: chat.unread,
+                        bgColor: primaryColor, // Telegram Blue badge
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 

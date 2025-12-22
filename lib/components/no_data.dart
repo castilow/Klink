@@ -10,6 +10,7 @@ class NoData extends StatefulWidget {
     this.iconSize = 80,
     this.customIcon,
     this.subtitle,
+    this.action,
   });
 
   // Variables
@@ -19,6 +20,7 @@ class NoData extends StatefulWidget {
   final IconData? iconData;
   final double iconSize;
   final Widget? customIcon;
+  final Widget? action;
 
   @override
   State<NoData> createState() => _NoDataState();
@@ -133,6 +135,11 @@ class _NoDataState extends State<NoData>
                         ),
                         textAlign: TextAlign.center,
                       ),
+                    ],
+
+                    if (widget.action != null) ...[
+                      const SizedBox(height: 32),
+                      widget.action!,
                     ],
                   ],
                 ),

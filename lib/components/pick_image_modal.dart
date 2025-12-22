@@ -124,7 +124,7 @@ class PickImageModal extends StatelessWidget {
                 );
                 if (croppedImage != null) {
                   // Mostrar pantalla de edición con filtros
-                  final File? editedImage = await Get.to<File>(
+                  final File? editedImage = await Get.to(
                     () => EditPhotoScreen(
                       imageFile: croppedImage,
                       onSave: (File? file) {},
@@ -160,7 +160,7 @@ class PickImageModal extends StatelessWidget {
                 );
                 if (croppedImage != null) {
                   // Mostrar pantalla de edición con filtros
-                  final File? editedImage = await Get.to<File>(
+                  final File? editedImage = await Get.to(
                     () => EditPhotoScreen(
                       imageFile: croppedImage,
                       onSave: (File? file) {},

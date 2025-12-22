@@ -10,6 +10,7 @@ abstract class ChatGPTApi {
   static Future<String?> sendMessage({
     required String message,
     List<Map<String, String>>? conversationHistory,
+    String? imageBase64,
   }) async {
     try {
       debugPrint('🤖 ChatGPT: Enviando mensaje a Firebase Functions...');
@@ -20,12 +21,42 @@ abstract class ChatGPTApi {
       }
 
       // Llamar a la función de Firebase
-      final result = await _functions
-          .httpsCallable('chatWithAssistant')
-          .call({
+      final callData = <String, dynamic>{
         'message': message,
         'conversationHistory': conversationHistory ?? [],
-      }).timeout(
+      };
+      
+      // Agregar imagen si existe (enviar como 'image' y 'imageBase64' para compatibilidad)
+      if (imageBase64 != null && imageBase64.isNotEmpty) {
+        // Limpiar el base64 si ya tiene el prefijo data:image
+        String cleanBase64 = imageBase64;
+        if (imageBase64.contains(',')) {
+          cleanBase64 = imageBase64.split(',').last;
+        }
+        
+        // Validar que el base64 sea válido
+        final base64Regex = RegExp(r'^[A-Za-z0-9+/]*={0,2}$');
+        final isValidBase64 = base64Regex.hasMatch(cleanBase64);
+        debugPrint('🤖 ChatGPT: Base64 válido: $isValidBase64');
+        debugPrint('🤖 ChatGPT: Base64 preview (primeros 50 chars): ${cleanBase64.substring(0, cleanBase64.length > 50 ? 50 : cleanBase64.length)}...');
+        
+        if (!isValidBase64) {
+          debugPrint('⚠️ ChatGPT: El base64 no es válido, pero se enviará de todas formas');
+        }
+        
+        callData['image'] = cleanBase64;
+        callData['imageBase64'] = cleanBase64;
+        debugPrint('🤖 ChatGPT: Incluyendo imagen en la petición (tamaño: ${cleanBase64.length} caracteres)');
+        debugPrint('🤖 ChatGPT: callData keys: ${callData.keys}');
+        debugPrint('🤖 ChatGPT: callData tiene image: ${callData.containsKey('image')}');
+        debugPrint('🤖 ChatGPT: callData tiene imageBase64: ${callData.containsKey('imageBase64')}');
+      } else {
+        debugPrint('⚠️ ChatGPT: imageBase64 es null o vacío');
+      }
+      
+      final result = await _functions
+          .httpsCallable('chatWithAssistant')
+          .call(callData).timeout(
         const Duration(seconds: 35),
         onTimeout: () {
           debugPrint('🤖 ChatGPT: Timeout después de 35 segundos');

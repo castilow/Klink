@@ -60,6 +60,8 @@ class _KlinkAIButtonState extends State<KlinkAIButton> with SingleTickerProvider
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    
     return GestureDetector(
       onTap: _openAIChat,
       child: AnimatedBuilder(
@@ -70,9 +72,11 @@ class _KlinkAIButtonState extends State<KlinkAIButton> with SingleTickerProvider
             height: 44,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.black, // Premium dark background
+              color: Colors.black, // Always black to ensure logo visibility
               border: Border.all(
-                color: const Color(0xFF00E5FF).withOpacity(0.5),
+                color: isDarkMode 
+                    ? const Color(0xFF00E5FF).withOpacity(0.5) 
+                    : Colors.black.withOpacity(0.1), // Subtle border in light mode
                 width: 1.5,
               ),
               boxShadow: [
@@ -81,6 +85,12 @@ class _KlinkAIButtonState extends State<KlinkAIButton> with SingleTickerProvider
                   blurRadius: 8,
                   spreadRadius: 1,
                 ),
+                if (!isDarkMode)
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
               ],
             ),
             padding: const EdgeInsets.all(8),

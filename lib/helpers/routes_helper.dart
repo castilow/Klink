@@ -51,6 +51,13 @@ abstract class RoutesHelper {
     }
 
     //
+    // <-- Ensure group chat entry exists before navigating -->
+    //
+    if (isGroup && groupId != null) {
+      await GroupApi.ensureGroupChatEntry(groupId);
+    }
+    
+    //
     // <-- Go to messages page -->
     //
     final result = await Get.toNamed(

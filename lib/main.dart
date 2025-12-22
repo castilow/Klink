@@ -53,8 +53,28 @@ Future<void> _ensureFirebaseInitialized() async {
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await _ensureFirebaseInitialized();
+  
   if (kDebugMode) {
-    debugPrint('Background message received: ${message.messageId}');
+    debugPrint('📱 [BACKGROUND] Mensaje recibido en segundo plano: ${message.messageId}');
+    debugPrint('📱 [BACKGROUND] Tipo: ${message.data['type']}');
+    debugPrint('📱 [BACKGROUND] Datos: ${message.data}');
+  }
+
+  // Procesar notificación según su tipo
+  final String type = message.data['type'] ?? '';
+  
+  if (type == 'call') {
+    // Para llamadas, el sistema ya maneja la notificación push
+    // pero podemos registrar que llegó
+    if (kDebugMode) {
+      debugPrint('📞 [BACKGROUND] Notificación de llamada recibida');
+    }
+  } else if (type == 'message' || type == 'group') {
+    // Para mensajes, las notificaciones push del servidor ya se muestran
+    // Solo registramos el log
+    if (kDebugMode) {
+      debugPrint('💬 [BACKGROUND] Notificación de mensaje recibida');
+    }
   }
 }
 

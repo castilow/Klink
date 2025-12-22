@@ -131,6 +131,19 @@ class BubbleMessage extends StatelessWidget {
                   ),
                 ),
               
+              // Avatar for incoming group messages
+              if (isGroup && !isSender)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8, top: 4), 
+                  child: GestureDetector(
+                    onTap: onTapProfile,
+                    child: CircleAvatar(
+                      backgroundImage: CachedNetworkImageProvider(senderUser.photoUrl),
+                      radius: 16,
+                    ),
+                  ),
+                ),
+
               // Main message container
               Expanded(
                 child: SwipeTo(
@@ -142,9 +155,9 @@ class BubbleMessage extends StatelessWidget {
                       alignment: isSender ? Alignment.centerRight : Alignment.centerLeft,
                       child: _isMediaMessage()
                           ? Container(
-                              margin: EdgeInsets.only(
+                                margin: EdgeInsets.only(
                                 top: 8,
-                                left: isSender ? (isMultiSelectMode ? 8 : 50) : (isMultiSelectMode ? 8 : 0),
+                                left: isSender ? (isMultiSelectMode ? 8 : 50) : 0, // Removed left margin because avatar is there
                                 right: isSender ? 0 : 50,
                               ),
                               child: Column(
@@ -155,27 +168,14 @@ class BubbleMessage extends StatelessWidget {
                                     _buildForwardedMediaInfo(),
                                   if (isGroup && !isSender && !message.isDeleted)
                                     Padding(
-                                      padding: const EdgeInsets.only(bottom: 8),
-                                      child: Row(
-                                        children: [
-                                          Container(
-                                            width: 24,
-                                            height: 24,
-                                            margin: const EdgeInsets.only(right: 8),
-                                            child: CircleAvatar(
-                                              backgroundImage: CachedNetworkImageProvider(senderUser.photoUrl),
-                                              radius: 12,
-                                            ),
-                                          ),
-                                          Text(
-                                            senderUser.fullname,
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.w600,
-                                              color: textColor,
-                                              fontSize: 13,
-                                            ),
-                                          ),
-                                        ],
+                                      padding: const EdgeInsets.only(bottom: 4),
+                                      child: Text(
+                                        senderUser.fullname,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFFE91E63), // Pink/Premium color for name
+                                          fontSize: 13,
+                                        ),
                                       ),
                                     ),
                                   _showMessageContent(profileUrl, backgroundColor),
@@ -186,8 +186,8 @@ class BubbleMessage extends StatelessWidget {
                               final double radius = prefController.customBubbleRadius.value;
                               return Container(
                               margin: EdgeInsets.only(
-                                top: 4, // Tighter spacing
-                                left: isSender ? (isMultiSelectMode ? 8 : 50) : (isMultiSelectMode ? 8 : 0),
+                                top: 4, 
+                                left: isSender ? (isMultiSelectMode ? 8 : 50) : 0, // Removed left margin
                                 right: isSender ? 0 : 50,
                               ),
                               padding: const EdgeInsets.fromLTRB(10, 6, 10, 6), // Slightly more compact
@@ -230,34 +230,21 @@ class BubbleMessage extends StatelessWidget {
                                           padding: const EdgeInsets.only(bottom: 4),
                                           child: ForwardedBadge(isSender: isSender),
                                         ),
-                                      if (isGroup && !isSender && !message.isDeleted)
-                                        GestureDetector(
-                                          onTap: onTapProfile,
-                                          child: Padding(
-                                            padding: const EdgeInsets.only(bottom: 4),
-                                            child: Row(
-                                              children: [
-                                                Container(
-                                                  width: 20,
-                                                  height: 20,
-                                                  margin: const EdgeInsets.only(right: 6),
-                                                  child: CircleAvatar(
-                                                    backgroundImage: CachedNetworkImageProvider(senderUser.photoUrl),
-                                                    radius: 10,
-                                                  ),
+                                        if (isGroup && !isSender && !message.isDeleted)
+                                          GestureDetector(
+                                            onTap: onTapProfile,
+                                            child: Padding(
+                                              padding: const EdgeInsets.only(bottom: 2),
+                                              child: Text(
+                                                senderUser.fullname,
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Color(0xFFFF9100), // Orange premium for text messages
+                                                  fontSize: 13,
                                                 ),
-                                                Text(
-                                                  senderUser.fullname,
-                                                  style: TextStyle(
-                                                    fontWeight: FontWeight.w600,
-                                                    color: textColor,
-                                                    fontSize: 13,
-                                                  ),
-                                                ),
-                                              ],
+                                              ),
                                             ),
                                           ),
-                                        ),
                                       if (message.replyMessage != null)
                                         Padding(
                                           padding: const EdgeInsets.only(bottom: 8),

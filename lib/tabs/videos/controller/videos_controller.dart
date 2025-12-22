@@ -14,6 +14,7 @@ import 'package:chat_messenger/services/video_cache_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:video_player/video_player.dart';
+import 'package:audio_session/audio_session.dart';
 
 class VideoPost {
   final String id;
@@ -398,6 +399,28 @@ class VideosController extends GetxController {
     if (videoControllers.containsKey(video.id)) return;
     
     try {
+      // Configurar audio para usar el altavoz principal (no el auricular)
+      try {
+        final session = await AudioSession.instance;
+        await session.configure(const AudioSessionConfiguration(
+          avAudioSessionCategory: AVAudioSessionCategory.playback,
+          avAudioSessionCategoryOptions: AVAudioSessionCategoryOptions.defaultToSpeaker,
+          avAudioSessionMode: AVAudioSessionMode.moviePlayback,
+          avAudioSessionRouteSharingPolicy: AVAudioSessionRouteSharingPolicy.defaultPolicy,
+          avAudioSessionSetActiveOptions: AVAudioSessionSetActiveOptions.none,
+          androidAudioAttributes: AndroidAudioAttributes(
+            contentType: AndroidAudioContentType.movie,
+            flags: AndroidAudioFlags.none,
+            usage: AndroidAudioUsage.media,
+          ),
+          androidAudioFocusGainType: AndroidAudioFocusGainType.gain,
+          androidWillPauseWhenDucked: false,
+        ));
+        debugPrint('✅ [VIDEOS_CONTROLLER] Audio configurado para usar altavoz principal');
+      } catch (e) {
+        debugPrint('⚠️ [VIDEOS_CONTROLLER] Error configurando audio: $e');
+      }
+      
       // Intentar obtener del caché primero
       final cachedFile = await VideoCacheService.instance.getCachedFile(video.videoUrl);
       

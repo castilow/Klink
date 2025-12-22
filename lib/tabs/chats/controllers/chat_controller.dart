@@ -11,6 +11,8 @@ import 'package:chat_messenger/controllers/auth_controller.dart';
 import 'package:chat_messenger/services/local_cache_service.dart';
 import 'package:chat_messenger/services/avatar_cache_manager.dart';
 
+enum ChatFilter { all, unread, archived, groups }
+
 class ChatController extends GetxController {
   // Get the current instance
   static ChatController instance = Get.find();
@@ -21,6 +23,7 @@ class ChatController extends GetxController {
   final RxBool isSearching = RxBool(false);
   final TextEditingController searchController = TextEditingController();
   StreamSubscription<List<Chat>>? _stream;
+  final Rx<ChatFilter> activeFilter = Rx<ChatFilter>(ChatFilter.all);
   
   // Para manejo de eliminación con opción de deshacer
   final RxList<String> _pendingDeletions = RxList<String>();
@@ -30,6 +33,21 @@ class ChatController extends GetxController {
   final RxInt _countdown = RxInt(5);
 
   bool get newMessage => chats.where((el) => el.unread > 0).isNotEmpty;
+
+  // Cambiar el filtro activo
+  void setFilter(ChatFilter filter) {
+    activeFilter.value = filter;
+  }
+
+  // Obtener el conteo de grupos
+  int get groupsCount {
+    return chats.where((chat) => chat.groupId != null && chat.groupId!.isNotEmpty).length;
+  }
+
+  // Obtener el conteo de no leídos
+  int get unreadCount {
+    return chats.where((chat) => chat.unread > 0).length;
+  }
 
   @override
   void onInit() {
@@ -55,6 +73,14 @@ class ChatController extends GetxController {
     _stream = ChatApi.getChats().listen((event) async {
       // Procesar chats para manejar reactivación automática
       final processedChats = _processIncomingChats(event);
+      
+      // Limpiar _pendingDeletions de chats que ya no existen en Firestore
+      final existingChatIds = processedChats.map((chat) {
+        final userId = chat.receiver?.userId ?? '';
+        final groupId = chat.groupId ?? '';
+        return groupId.isNotEmpty ? groupId : userId;
+      }).toSet();
+      _pendingDeletions.removeWhere((chatId) => !existingChatIds.contains(chatId));
       
       // Añadir el chat del asistente IA al principio si no existe
       // _ensureAIAssistantChat(processedChats); // REMOVED to hide from list
@@ -173,10 +199,27 @@ class ChatController extends GetxController {
           final userId = chat.receiver?.userId ?? '';
           final groupId = chat.groupId ?? '';
           final chatId = groupId.isNotEmpty ? groupId : userId;
+          
           // Exclude Klink AI from visible list
           if (userId == 'klink_ai_assistant') return false;
 
-          return !_pendingDeletions.contains(chatId);
+          // Excluir chats pendientes de eliminación
+          if (_pendingDeletions.contains(chatId)) return false;
+
+          // Aplicar filtro activo
+          switch (activeFilter.value) {
+            case ChatFilter.all:
+              return true;
+            case ChatFilter.unread:
+              return chat.unread > 0;
+            case ChatFilter.archived:
+              // TODO: Implementar lógica de archivados cuando se agregue esa funcionalidad
+              return false;
+            case ChatFilter.groups:
+              return chat.groupId != null && chat.groupId!.isNotEmpty;
+            default:
+              return true;
+          }
         })
         .toList();
   }
@@ -187,50 +230,34 @@ class ChatController extends GetxController {
     FocusScope.of(context).unfocus();
   }
 
-  void deleteChat(String userId) {
+  void deleteChat(String userId) async {
     // Agregar a la lista de eliminaciones pendientes (ocultar de la UI inmediatamente)
     _pendingDeletions.add(userId);
     
-    // Cancelar timers anteriores si existen
-    _deletionTimer?.cancel();
-    _countdownTimer?.cancel();
-    
-    // Resetear contador a 5 segundos
-    _countdown.value = 5;
-    
-    // Mostrar SnackBar con contador visual
-    _showUndoSnackbar(userId);
-    
-    // Configurar timer de 5 segundos para eliminación permanente
-    _deletionTimer = Timer(const Duration(seconds: 5), () {
-      _confirmDeletion(userId);
-    });
-    
-    // Configurar countdown timer que actualiza cada segundo
-    _startCountdown();
+    // Eliminar inmediatamente de Firestore
+    try {
+      await ChatApi.deleteChat(userId: userId);
+      debugPrint('Chat eliminado de Firestore: $userId');
+    } catch (e) {
+      debugPrint('Error eliminando chat: $e');
+      // Si hay error, remover de pending para que vuelva a aparecer
+      _pendingDeletions.remove(userId);
+    }
   }
 
-  void deleteGroupChat(String groupId) {
+  void deleteGroupChat(String groupId) async {
     // Agregar a la lista de eliminaciones pendientes (ocultar de la UI inmediatamente)
     _pendingDeletions.add(groupId);
     
-    // Cancelar timers anteriores si existen
-    _deletionTimer?.cancel();
-    _countdownTimer?.cancel();
-    
-    // Resetear contador a 5 segundos
-    _countdown.value = 5;
-    
-    // Mostrar SnackBar con contador visual
-    _showUndoSnackbar(groupId);
-    
-    // Configurar timer de 5 segundos para eliminación permanente
-    _deletionTimer = Timer(const Duration(seconds: 5), () {
-      _confirmGroupDeletion(groupId);
-    });
-    
-    // Configurar countdown timer que actualiza cada segundo
-    _startCountdown();
+    // Eliminar inmediatamente de Firestore
+    try {
+      await ChatApi.deleteGroupChat(groupId: groupId);
+      debugPrint('Grupo eliminado de Firestore: $groupId');
+    } catch (e) {
+      debugPrint('Error eliminando grupo: $e');
+      // Si hay error, remover de pending para que vuelva a aparecer
+      _pendingDeletions.remove(groupId);
+    }
   }
 
   void _startCountdown() {
@@ -326,25 +353,14 @@ class ChatController extends GetxController {
     _pendingDeletions.remove(chatId);
   }
 
-  void _confirmDeletion(String userId) async {
+  void _finalizeDeletion(String userId) {
     // Cancelar countdown timer
     _countdownTimer?.cancel();
-    
-    // Contar mensajes antes de eliminar
-    final messageCount = await _countMessagesInChat(userId);
-    
-    // Guardar el contador para cuando el chat se reactive
-    if (messageCount > 0) {
-      _deletedChatsCount[userId] = messageCount;
-    }
-    
-    // Eliminar permanentemente del servidor
-    ChatApi.deleteChat(userId: userId);
     
     // Remover de la lista de eliminaciones pendientes
     _pendingDeletions.remove(userId);
     
-    debugPrint('Chat eliminado. Mensajes contados: $messageCount');
+    debugPrint('Chat eliminación finalizada: $userId');
   }
 
   Future<int> _countMessagesInChat(String userId) async {
@@ -397,26 +413,6 @@ class ChatController extends GetxController {
     }
   }
 
-  void _confirmGroupDeletion(String groupId) async {
-    // Cancelar countdown timer
-    _countdownTimer?.cancel();
-    
-    // Contar mensajes antes de eliminar
-    final messageCount = await _countGroupMessages(groupId);
-    
-    // Guardar el contador para cuando el chat se reactive
-    if (messageCount > 0) {
-      _deletedChatsCount[groupId] = messageCount;
-    }
-    
-    // Eliminar permanentemente del servidor
-    ChatApi.deleteGroupChat(groupId: groupId);
-    
-    // Remover de la lista de eliminaciones pendientes
-    _pendingDeletions.remove(groupId);
-    
-    debugPrint('Grupo eliminado. Mensajes contados: $messageCount');
-  }
 
   Future<int> _countGroupMessages(String groupId) async {
     try {

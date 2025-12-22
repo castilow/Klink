@@ -20,10 +20,12 @@ class ChatInputField extends StatefulWidget {
     super.key,
     this.user,
     this.group,
+    this.isAI = false,
   });
 
   final User? user;
   final Group? group;
+  final bool isAI;
 
   @override
   ChatInputFieldState createState() => ChatInputFieldState();
@@ -356,23 +358,32 @@ final bool kbOpen = MediaQuery.of(context).viewInsets.bottom > 0;
                       child: BackdropFilter(
                         filter: ui.ImageFilter.blur(sigmaX: 15, sigmaY: 15),
                         child: Container(
+
                           decoration: BoxDecoration(
-                            color: (Theme.of(context).brightness == Brightness.dark 
-                                ? const Color(0xFF1E1E1E) 
-                                : const Color(0xFFFFFFFF)).withOpacity(0.85),
+                            color: widget.isAI
+                                ? (Theme.of(context).brightness == Brightness.dark
+                                    ? const Color(0xFF0F172A).withOpacity(0.8) // Darker, richer for AI
+                                    : Colors.white.withOpacity(0.9))
+                                : (Theme.of(context).brightness == Brightness.dark 
+                                    ? const Color(0xFF1E1E1E) 
+                                    : const Color(0xFFFFFFFF)).withOpacity(0.85),
                             borderRadius: BorderRadius.circular(35),
                             border: Border.all(
-                              color: Theme.of(context).brightness == Brightness.dark 
-                                  ? Colors.white.withOpacity(0.1) 
-                                  : Colors.black.withOpacity(0.05),
-                              width: 0.5,
+                              color: widget.isAI
+                                  ? const Color(0xFF00E5FF).withOpacity(0.5) // Premium Cyan Border
+                                  : (Theme.of(context).brightness == Brightness.dark 
+                                      ? Colors.white.withOpacity(0.1) 
+                                      : Colors.black.withOpacity(0.05)),
+                              width: widget.isAI ? 1.5 : 0.5,
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
-                                blurRadius: 20,
-                                offset: const Offset(0, 10),
-                                spreadRadius: 0,
+                                color: widget.isAI 
+                                    ? const Color(0xFF00E5FF).withOpacity(0.2) // Cyan glow
+                                    : Colors.black.withOpacity(0.1),
+                                blurRadius: widget.isAI ? 12 : 20,
+                                offset: widget.isAI ? const Offset(0, 2) : const Offset(0, 10),
+                                spreadRadius: widget.isAI ? 1 : 0,
                               ),
                             ],
                           ),
@@ -615,14 +626,29 @@ final bool kbOpen = MediaQuery.of(context).viewInsets.bottom > 0;
                           width: 44,
                           height: 44,
                           alignment: Alignment.center,
+                          decoration: widget.isAI ? BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF00E5FF), Color(0xFF2979FF)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF00E5FF).withOpacity(0.4),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ) : null,
                           child: Icon(
                             Icons.send_rounded,
-                            color: isDark ? Colors.white : primaryColor,
+                            color: widget.isAI ? Colors.white : (isDark ? Colors.white : primaryColor),
                             size: 28,
                           ),
                         ),
                       )
-                    : GestureDetector(
+                      : GestureDetector(
                         onTapDown: (details) {
                           _micTapController.forward(from: 0);
                           Future.delayed(const Duration(milliseconds: 90), () {
@@ -633,11 +659,26 @@ final bool kbOpen = MediaQuery.of(context).viewInsets.bottom > 0;
                           width: 44,
                           height: 44,
                           alignment: Alignment.center,
+                          decoration: widget.isAI ? BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF00E5FF), Color(0xFF2979FF)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF00E5FF).withOpacity(0.4),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ) : null,
                           child: ScaleTransition(
                             scale: _micTapScale,
                             child: Icon(
                               Icons.mic_none_rounded,
-                              color: iconsColor,
+                              color: widget.isAI ? Colors.white : iconsColor,
                               size: 28,
                             ),
                           ),

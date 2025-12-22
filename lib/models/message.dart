@@ -214,13 +214,19 @@ class Message {
       viewedBy = List<String>.from(data['viewedBy']);
     }
 
+    // Debug: Log fileUrl para mensajes de imagen
+    final String fileUrl = data['fileUrl'] ?? '';
+    if (getMsgType(data['type']) == MessageType.image) {
+      debugPrint('📸 Message.fromMap: Mensaje de imagen ${messageId}, fileUrl: ${fileUrl.isEmpty ? "VACÍO" : fileUrl.substring(0, fileUrl.length > 50 ? 50 : fileUrl.length)}...');
+    }
+    
     return Message(
       docRef: docRef,
       msgId: messageId,
       senderId: data['senderId'] ?? '',
       type: getMsgType(data['type']),
       textMsg: finalTextMessage,
-      fileUrl: data['fileUrl'] ?? '',
+      fileUrl: fileUrl,
       gifUrl: data['gifUrl'] ?? '',
       location: Location.fromMap(data['location'] ?? {}),
       videoThumbnail: data['videoThumbnail'] ?? '',
@@ -274,7 +280,7 @@ class Message {
       'videoThumbnail': videoThumbnail,
       'isRead': isRead,
       'isForwarded': isForwarded,
-      'sentAt': FieldValue.serverTimestamp(),
+      'sentAt': sentAt != null ? Timestamp.fromDate(sentAt!) : FieldValue.serverTimestamp(),
       'replyMessage': replyMessage?.toMap(isGroup: isGroup),
       'groupUpdate': groupUpdate?.toMap(),
       'reactions': reactionsMap,

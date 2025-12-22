@@ -179,8 +179,8 @@ abstract class AppPages {
     GetPage(
       name: AppRoutes.createGroup,
       page: () {
-        final args = Get.arguments as Map<String, dynamic>;
-        final isBroadcast = args['isBroadcast'] as bool;
+        final args = Get.arguments as Map<String, dynamic>?;
+        final isBroadcast = args?['isBroadcast'] as bool? ?? false;
         return CreateGroupScreen(isBroadcast: isBroadcast);
       },
     ),

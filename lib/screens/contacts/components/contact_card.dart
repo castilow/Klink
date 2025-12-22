@@ -26,9 +26,10 @@ class ContactCard extends GetView<ContactController> {
       child: Container(
         padding: const EdgeInsets.only(top: 8, bottom: 8, left: 16, right: 16),
         decoration: BoxDecoration(
+          color: isDarkMode ? darkThemeBgColor : lightThemeBgColor,
           border: Border(
             bottom: BorderSide(
-              color: isDarkMode ? greyLight.withOpacity(0.10) : greyLight,
+              color: isDarkMode ? darkDividerColor : lightDividerColor,
             ),
           ),
         ),
@@ -55,7 +56,11 @@ class ContactCard extends GetView<ContactController> {
                     style: Theme.of(context)
                         .textTheme
                         .bodyMedium!
-                        .copyWith(color: Colors.grey.withOpacity(0.8)),
+                        .copyWith(
+                          color: isDarkMode 
+                              ? darkThemeSecondaryText 
+                              : lightThemeSecondaryText,
+                        ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],
