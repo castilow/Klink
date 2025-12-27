@@ -52,14 +52,24 @@ class MessageCleanupService {
         final messagesRef = _firestore
             .collection('Users/${currentUser.userId}/Chats/$chatId/Messages');
         
-        // Obtener mensajes temporales expirados
-        final expiredMessages = await messagesRef
+        // Obtener todos los mensajes temporales (sin filtro de fecha para evitar índice compuesto)
+        // Luego filtrar en memoria los expirados
+        final temporaryMessages = await messagesRef
             .where('isTemporary', isEqualTo: true)
-            .where('expiresAt', isLessThan: Timestamp.fromDate(now))
             .get();
         
+        // Filtrar mensajes expirados en memoria
+        final expiredMessages = temporaryMessages.docs.where((doc) {
+          final data = doc.data();
+          if (data.containsKey('expiresAt') && data['expiresAt'] != null) {
+            final expiresAt = (data['expiresAt'] as Timestamp).toDate();
+            return expiresAt.isBefore(now);
+          }
+          return false;
+        }).toList();
+        
         // Eliminar mensajes expirados
-        for (var messageDoc in expiredMessages.docs) {
+        for (var messageDoc in expiredMessages) {
           await messageDoc.reference.delete();
           deletedCount++;
         }
@@ -92,14 +102,24 @@ class MessageCleanupService {
       final messagesRef = _firestore
           .collection('Users/${currentUser.userId}/Chats/$chatUserId/Messages');
       
-      // Obtener mensajes temporales expirados
-      final expiredMessages = await messagesRef
+      // Obtener todos los mensajes temporales (sin filtro de fecha para evitar índice compuesto)
+      // Luego filtrar en memoria los expirados
+      final temporaryMessages = await messagesRef
           .where('isTemporary', isEqualTo: true)
-          .where('expiresAt', isLessThan: Timestamp.fromDate(now))
           .get();
       
+      // Filtrar mensajes expirados en memoria
+      final expiredMessages = temporaryMessages.docs.where((doc) {
+        final data = doc.data();
+        if (data.containsKey('expiresAt') && data['expiresAt'] != null) {
+          final expiresAt = (data['expiresAt'] as Timestamp).toDate();
+          return expiresAt.isBefore(now);
+        }
+        return false;
+      }).toList();
+      
       // Eliminar mensajes expirados
-      for (var messageDoc in expiredMessages.docs) {
+      for (var messageDoc in expiredMessages) {
         await messageDoc.reference.delete();
       }
       
@@ -107,12 +127,21 @@ class MessageCleanupService {
       final otherUserMessagesRef = _firestore
           .collection('Users/$chatUserId/Chats/${currentUser.userId}/Messages');
       
-      final otherExpiredMessages = await otherUserMessagesRef
+      final otherTemporaryMessages = await otherUserMessagesRef
           .where('isTemporary', isEqualTo: true)
-          .where('expiresAt', isLessThan: Timestamp.fromDate(now))
           .get();
       
-      for (var messageDoc in otherExpiredMessages.docs) {
+      // Filtrar mensajes expirados en memoria
+      final otherExpiredMessages = otherTemporaryMessages.docs.where((doc) {
+        final data = doc.data();
+        if (data.containsKey('expiresAt') && data['expiresAt'] != null) {
+          final expiresAt = (data['expiresAt'] as Timestamp).toDate();
+          return expiresAt.isBefore(now);
+        }
+        return false;
+      }).toList();
+      
+      for (var messageDoc in otherExpiredMessages) {
         await messageDoc.reference.delete();
       }
       

@@ -17,13 +17,15 @@ import 'package:story_view/story_view.dart';
 import 'dart:ui';
 
 class StoryViewScreen extends StatelessWidget {
-  const StoryViewScreen({super.key, required this.story});
+  const StoryViewScreen({super.key, required this.story, this.onStoryComplete});
 
   final Story story;
+  final VoidCallback? onStoryComplete;
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(StoryViewController(story: story));
+    // Use a unique tag based on story ID to ensure each page has its own controller
+    final controller = Get.put(StoryViewController(story: story), tag: story.id);
     final ReportController reportController = Get.find();
     final User user = story.user!;
     
@@ -46,23 +48,19 @@ class StoryViewScreen extends StatelessWidget {
       backgroundColor: Colors.transparent,
       body: Stack(
         children: [
-          // Enhanced Story View with blur background
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Colors.black.withValues(alpha: 0.8),
-                  Colors.black.withValues(alpha: 0.6),
-                  Colors.black.withValues(alpha: 0.8),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
+          // Story View
+          // Wrap in ExcludeSemantics to prevent 'parentDataDirty' errors during PageView scroll
+          ExcludeSemantics(
             child: StoryView(
               storyItems: controller.storyItems,
               controller: controller.storyController,
-              onComplete: () => Get.back(),
+              onComplete: () {
+                if (onStoryComplete != null) {
+                  onStoryComplete!();
+                } else {
+                  Get.back();
+                }
+              },
               onStoryShow: (StoryItem item, index) {
                 controller.getStoryItemIndex(index);
                 controller.markSeen();
@@ -70,505 +68,481 @@ class StoryViewScreen extends StatelessWidget {
             ),
           ),
           
-          // Enhanced header with glassmorphism effect
+          // Gradients for legibility
+          Positioned.fill(
+            child: Column(
+              children: [
+                // Top gradient - Smoother and less intrusive
+                Container(
+                  height: 180,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.black.withOpacity(0.6),
+                        Colors.black.withOpacity(0.3),
+                        Colors.transparent,
+                      ],
+                      stops: const [0.0, 0.4, 1.0],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                // Bottom gradient - Smoother
+                Container(
+                  height: 250, // Increased height for safe area coverage
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withOpacity(0.3),
+                        Colors.black.withOpacity(0.7),
+                        Colors.black.withOpacity(0.8),
+                      ],
+                      stops: const [0.0, 0.5, 0.8, 1.0],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // Clean Header
           Positioned(
             top: 0,
             left: 0,
             right: 0,
-            child: Container(
-              margin: EdgeInsets.only(top: topMargin),
-              padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(isTablet ? 24 : 20),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                  child: Container(
-                    padding: EdgeInsets.all(isTablet ? 16 : 12),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(isTablet ? 24 : 20),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        width: 1,
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0.0, end: 1.0),
+              duration: const Duration(milliseconds: 800),
+              curve: Curves.easeOutQuart,
+              builder: (context, value, child) {
+                return Transform.translate(
+                  offset: Offset(0, -20 * (1 - value)),
+                  child: Opacity(
+                    opacity: value,
+                    child: child,
+                  ),
+                );
+              },
+              child: Container(
+                margin: EdgeInsets.only(top: topMargin),
+                padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+                child: Row(
+                  children: [
+                     // Back button
+                    IconButton(
+                      onPressed: () => Get.back(),
+                      icon: Icon(
+                        IconlyLight.arrowLeft2,
+                        color: Colors.white,
+                        size: iconSize,
+                      ),
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.black.withOpacity(0.2),
+                        padding: const EdgeInsets.all(8),
                       ),
                     ),
-                    child: Row(
-                      children: [
-                        // Enhanced back button
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.5),
-                            borderRadius: BorderRadius.circular(isTablet ? 16 : 12),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.3),
-                              width: 1,
-                            ),
-                          ),
-                          child: IconButton(
-                            onPressed: () => Get.back(),
-                            icon: Icon(
-                              IconlyLight.arrowLeft2,
-                              color: Colors.white,
-                              size: iconSize,
-                            ),
-                          ),
-                        ),
-                        SizedBox(width: isTablet ? 16 : 12),
-                        
-                        // Enhanced profile avatar with glow effect
-                        Container(
+                    SizedBox(width: isTablet ? 12 : 8),
+                    
+                    // User info
+                    GestureDetector(
+                      onTap: () {
+                        RoutesHelper.toProfileView(user, false).then(
+                          (value) => Get.back(),
+                        );
+                      },
+                      child: Hero(
+                        tag: 'story_avatar_${story.id}',
+                        child: Container(
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: primaryColor.withValues(alpha: 0.8),
-                              width: 3,
+                              color: Colors.white,
+                              width: 1.5,
                             ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: primaryColor.withValues(alpha: 0.4),
-                                blurRadius: 15,
-                                offset: const Offset(0, 5),
-                              ),
-                            ],
                           ),
-                          child: GestureDetector(
-                            onTap: () {
-                              RoutesHelper.toProfileView(user, false).then(
-                                (value) => Get.back(),
-                              );
-                            },
-                            child: CachedCircleAvatar(
-                              radius: avatarRadius,
-                              imageUrl: user.photoUrl,
-                            ),
+                          child: CachedCircleAvatar(
+                            radius: avatarRadius - 2,
+                            imageUrl: user.photoUrl,
                           ),
                         ),
-                        SizedBox(width: isTablet ? 16 : 12),
-                        
-                        // Enhanced user info
-                        Expanded(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Profile name with enhanced styling
-                              Text(
-                                user.fullname,
-                                style: Theme.of(context).textTheme.bodyLarge!.copyWith(
-                                  color: Colors.white,
-                                  fontSize: textFontSize,
-                                  fontWeight: FontWeight.w700,
-                                  shadows: [
-                                    Shadow(
-                                      color: Colors.black.withValues(alpha: 0.7),
-                                      offset: const Offset(1, 1),
-                                      blurRadius: 3,
-                                    ),
-                                  ],
+                      ),
+                    ),
+                    SizedBox(width: isTablet ? 12 : 10),
+                    
+                    // Name and Metadata (Two - Line Layout)
+                    Expanded(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Line 1: Username
+                          Text(
+                            user.fullname,
+                            style: Theme.of(context).textTheme.titleMedium!.copyWith(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              height: 1.2,
+                              shadows: [
+                                Shadow(
+                                  color: Colors.black.withOpacity(0.5),
+                                  offset: const Offset(0, 1),
+                                  blurRadius: 3,
                                 ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              SizedBox(height: isTablet ? 4 : 2),
-                              // Time with enhanced styling
+                              ],
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                          const SizedBox(height: 1), // Subtle spacing
+                          
+                          // Line 2: Time • Music
+                          Row(
+                            children: [
                               Text(
                                 story.updatedAt != null 
                                     ? story.updatedAt!.formatDateTime
                                     : 'now'.tr,
                                 style: Theme.of(context).textTheme.bodySmall!.copyWith(
-                                  color: Colors.white.withValues(alpha: 0.8),
-                                  fontSize: timeFontSize,
+                                  color: Colors.white.withOpacity(0.9),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
                                   shadows: [
                                     Shadow(
-                                      color: Colors.black.withValues(alpha: 0.7),
-                                      offset: const Offset(1, 1),
+                                      color: Colors.black.withOpacity(0.5),
+                                      offset: const Offset(0, 1),
                                       blurRadius: 2,
                                     ),
                                   ],
                                 ),
                               ),
+                              // Music Info
+                              Obx(() {
+                                final music = controller.currentMusic;
+                                if (music == null) return const SizedBox.shrink();
+                                return Expanded(
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        " • ",
+                                        style: TextStyle(
+                                          color: Colors.white.withOpacity(0.8),
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w900, // Thicker dot
+                                        ),
+                                      ),
+                                      Icon(
+                                        Icons.music_note_rounded,
+                                        color: Colors.white.withOpacity(0.9),
+                                        size: 11,
+                                      ),
+                                      const SizedBox(width: 2),
+                                      Expanded(
+                                        child: Text(
+                                          music.trackName,
+                                          style: Theme.of(context).textTheme.bodySmall!.copyWith(
+                                            color: Colors.white.withOpacity(0.95), // Slightly brighter
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                            shadows: [
+                                              Shadow(
+                                                color: Colors.black.withOpacity(0.5),
+                                                offset: const Offset(0, 1),
+                                                blurRadius: 2,
+                                              ),
+                                            ],
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }),
                             ],
                           ),
-                        ),
-                        
-                        // Enhanced action buttons
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // Enhanced chat button
-                            Container(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [
-                                    primaryColor,
-                                    primaryColor.withValues(alpha: 0.8),
-                                  ],
-                                ),
-                                borderRadius: BorderRadius.circular(isTablet ? 16 : 12),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: primaryColor.withValues(alpha: 0.4),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
+                        ],
+                      ),
+                    ),
+                    
+                    // More Button Only (Chat moved to bottom)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(30),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.1),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.2),
+                              width: 1,
+                            ),
+                          ),
+                          child: Theme(
+                            data: Theme.of(context).copyWith(
+                              cardColor: const Color(0xFF1E1E1E),
+                              popupMenuTheme: PopupMenuThemeData(
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  side: BorderSide(
+                                    color: Colors.white.withOpacity(0.1), 
+                                    width: 0.5
                                   ),
-                                ],
-                              ),
-                              child: IconButton(
-                                onPressed: () {
-                                  RoutesHelper.toMessages(user: user).then((value) => Get.back());
-                                },
-                                icon: Icon(
-                                  IconlyBold.chat,
-                                  color: Colors.white,
-                                  size: chatIconSize * 0.6,
                                 ),
                               ),
                             ),
-                            SizedBox(width: isTablet ? 12 : 8),
-                            
-                            // Enhanced more options button
-                            Container(
-                              decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.5),
-                                borderRadius: BorderRadius.circular(isTablet ? 16 : 12),
-                                border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.3),
-                                  width: 1,
-                                ),
-                              ),
-                              child: PopupMenuButton<String>(
-                                icon: Icon(
-                                  IconlyBold.moreCircle,
-                                  color: Colors.white,
-                                  size: iconSize,
-                                ),
+                            child: PopupMenuButton<String>(
+                              icon: Icon(
+                                IconlyBold.moreCircle,
                                 color: Colors.white,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(isTablet ? 16 : 12),
-                                ),
-                                itemBuilder: (context) {
-                                  final List<PopupMenuEntry<String>> items = [];
-                                  
-                                  // Delete option (solo si es el dueño)
-                                  if (story.isOwner) {
-                                    items.add(
-                                      PopupMenuItem<String>(
-                                        value: 'delete',
-                                        child: Row(
-                                          children: [
-                                            Icon(
-                                              IconlyBold.delete,
-                                              color: Colors.red,
-                                              size: isTablet ? 20 : 18,
-                                            ),
-                                            SizedBox(width: isTablet ? 12 : 8),
-                                            Text(
-                                              'Eliminar historia',
-                                              style: TextStyle(
-                                                color: Colors.red,
-                                                fontSize: isTablet ? 16 : 14,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                  
-                                  // Report option (solo si NO es el dueño)
-                                  if (!story.isOwner) {
-                                    items.add(
-                                      PopupMenuItem<String>(
-                                        value: 'report',
-                                        child: Row(
-                                          children: [
-                                            Icon(
-                                              IconlyBold.infoCircle,
-                                              color: Colors.red,
-                                              size: isTablet ? 20 : 18,
-                                            ),
-                                            SizedBox(width: isTablet ? 12 : 8),
-                                            Text(
-                                              'report'.tr,
-                                              style: TextStyle(
-                                                color: Colors.red,
-                                                fontSize: isTablet ? 16 : 14,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                  
-                                  return items;
-                                },
-                                onSelected: (value) async {
-                                  if (value == 'delete') {
-                                    // Mostrar diálogo de confirmación
-                                    final confirm = await Get.dialog<bool>(
-                                      AlertDialog(
-                                        title: const Text('Eliminar historia'),
-                                        content: const Text('¿Estás seguro de que quieres eliminar esta historia? Esta acción no se puede deshacer.'),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () => Get.back(result: false),
-                                            child: Text('Cancelar'.tr),
-                                          ),
-                                          TextButton(
-                                            onPressed: () => Get.back(result: true),
-                                            style: TextButton.styleFrom(
-                                              foregroundColor: Colors.red,
-                                            ),
-                                            child: const Text('Eliminar'),
+                                size: iconSize,
+                              ),
+                              padding: EdgeInsets.zero,
+                              offset: const Offset(0, 40),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              itemBuilder: (context) {
+                                final List<PopupMenuEntry<String>> items = [];
+                                
+                                if (story.isOwner) {
+                                  items.add(
+                                    PopupMenuItem<String>(
+                                      value: 'delete',
+                                      child: Row(
+                                        children: [
+                                          const Icon(IconlyBold.delete, color: Colors.red, size: 20),
+                                          const SizedBox(width: 12),
+                                          Text(
+                                            'Eliminar historia',
+                                            style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
                                           ),
                                         ],
                                       ),
-                                    );
-                                    
-                                    if (confirm == true) {
-                                      // Eliminar la historia
-                                      await StoryApi.deleteStory(story: story);
-                                      // Cerrar la pantalla
-                                      Get.back();
-                                    }
-                                  } else if (value == 'report') {
-                                    reportController.reportDialog(
-                                      type: ReportType.story,
-                                      story: story.toMap(),
-                                    );
+                                    ),
+                                  );
+                                }
+                                
+                                if (!story.isOwner) {
+                                  items.add(
+                                    PopupMenuItem<String>(
+                                      value: 'report',
+                                      child: Row(
+                                        children: [
+                                          const Icon(IconlyBold.infoCircle, color: Colors.red, size: 20),
+                                          const SizedBox(width: 12),
+                                          Text(
+                                            'report'.tr,
+                                            style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                }
+                                
+                                return items;
+                              },
+                              onSelected: (value) async {
+                                if (value == 'delete') {
+                                  final confirm = await Get.dialog<bool>(
+                                    AlertDialog(
+                                      backgroundColor: const Color(0xFF1E1E1E),
+                                      title: const Text('Eliminar historia', style: TextStyle(color: Colors.white)),
+                                      content: const Text(
+                                        '¿Estás seguro de que quieres eliminar esta historia? Esta acción no se puede deshacer.',
+                                        style: TextStyle(color: Colors.white70),
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Get.back(result: false),
+                                          child: Text('Cancelar'.tr, style: const TextStyle(color: Colors.white)),
+                                        ),
+                                        TextButton(
+                                          onPressed: () => Get.back(result: true),
+                                          style: TextButton.styleFrom(foregroundColor: Colors.red),
+                                          child: const Text('Eliminar'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                  
+                                  if (confirm == true) {
+                                    await StoryApi.deleteStory(story: story);
+                                    Get.back();
                                   }
-                                },
-                              ),
+                                } else if (value == 'report') {
+                                  reportController.reportDialog(
+                                    type: ReportType.story,
+                                    story: story.toMap(),
+                                  );
+                                }
+                              },
                             ),
-                          ],
+                          ),
                         ),
-                      ],
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ),
             ),
           ),
           
-          // Music info overlay (si hay música en el item actual)
-          Obx(() {
-            final music = controller.currentMusic;
-            if (music == null) return const SizedBox.shrink();
-            
-            return Positioned(
-              bottom: bottomPadding + 80, // Encima de los botones de acción
-              left: horizontalPadding,
-              right: horizontalPadding,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(isTablet ? 20 : 16),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                  child: Container(
-                    padding: EdgeInsets.all(isTablet ? 16 : 12),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.4),
-                      borderRadius: BorderRadius.circular(isTablet ? 20 : 16),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.1),
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF00E5FF).withOpacity(0.2),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.music_note,
-                            color: const Color(0xFF00E5FF),
-                            size: isTablet ? 24 : 20,
-                          ),
-                        ),
-                        SizedBox(width: isTablet ? 12 : 8),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                music.trackName,
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: isTablet ? 16 : 14,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              Text(
-                                music.artistName,
-                                style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: isTablet ? 14 : 12,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
-                        ),
-                        // Equalizer animation placeholder
-                        Row(
-                          children: List.generate(3, (index) => 
-                            Container(
-                              width: 3,
-                              height: 12 + (index % 2 * 8),
-                              margin: const EdgeInsets.symmetric(horizontal: 1),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF00E5FF),
-                                borderRadius: BorderRadius.circular(2),
-                              ),
-                            )
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            );
-          }),
+
           
-          // Enhanced bottom actions with glassmorphism
+          // Unified Bottom Footer (Input + Actions)
           Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              margin: EdgeInsets.only(bottom: bottomPadding),
-              padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(isTablet ? 24 : 20),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                  child: Container(
-                    padding: EdgeInsets.all(isTablet ? 20 : 16),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(isTablet ? 24 : 20),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        // Enhanced like button
-                        Expanded(
+            bottom: bottomPadding,
+            left: horizontalPadding,
+            right: horizontalPadding,
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0.0, end: 1.0),
+              duration: const Duration(milliseconds: 800),
+              curve: Curves.easeOutQuart,
+              builder: (context, value, child) {
+                return Transform.translate(
+                  offset: Offset(0, 20 * (1 - value)), // Slide from bottom
+                  child: Opacity(
+                    opacity: value,
+                    child: child,
+                  ),
+                );
+              },
+              child: Row(
+                children: [
+                  // Input Field (Navigates to Chat)
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        // Pause story if needed, then navigate
+                        controller.storyController.pause();
+                        RoutesHelper.toMessages(user: user).then((value) {
+                          controller.storyController.play();
+                        });
+                      },
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(30),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20), // Increased blur
                           child: Container(
-                            height: isTablet ? 56 : 48,
+                            height: 50,
                             decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [
-                                  Color(0xFF00E5FF), // Cyan
-                                  Color(0xFF2979FF), // Blue
-                                ],
+                              borderRadius: BorderRadius.circular(30),
+                              border: Border.all(color: Colors.white.withOpacity(0.12), width: 1.0), // Subtle border
+                              color: Colors.black.withOpacity(0.2),
+                              gradient: LinearGradient(
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
+                                colors: [
+                                  Colors.white.withOpacity(0.12),
+                                  Colors.white.withOpacity(0.06),
+                                ],
                               ),
-                              borderRadius: BorderRadius.circular(isTablet ? 16 : 12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFF2979FF).withOpacity(0.4),
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
                             ),
-                            child: Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(isTablet ? 16 : 12),
-                                onTap: () {
-                                  // Like action
-                                },
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      IconlyBold.heart,
-                                      color: Colors.white,
-                                      size: isTablet ? 24 : 20,
-                                    ),
-                                    SizedBox(width: isTablet ? 8 : 6),
-                                    Text(
-                                      'like'.tr,
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: isTablet ? 16 : 14,
-                                        fontWeight: FontWeight.w700,
-                                        letterSpacing: 0.5,
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              "Enviar mensaje...",
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.9),
+                                fontSize: 15,
+                                fontWeight: FontWeight.w400,
                               ),
                             ),
                           ),
                         ),
-                        SizedBox(width: isTablet ? 16 : 12),
-                        
-                        // Enhanced share button
-                        Expanded(
-                          child: Container(
-                            height: isTablet ? 56 : 48,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(isTablet ? 16 : 12),
-                              border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.2),
-                                width: 1,
-                              ),
-                            ),
-                            child: Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(isTablet ? 16 : 12),
-                                onTap: () {
-                                  // Share action
-                                },
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      IconlyBold.send,
-                                      color: Colors.white,
-                                      size: isTablet ? 24 : 20,
-                                    ),
-                                    SizedBox(width: isTablet ? 8 : 6),
-                                    Text(
-                                      'share'.tr,
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: isTablet ? 16 : 14,
-                                        fontWeight: FontWeight.w600,
-                                        letterSpacing: 0.5,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
-                ),
+                  
+                  const SizedBox(width: 12),
+                  
+                  // Like Button
+                  _buildGlassActionButton(
+                    icon: IconlyBold.heart,
+                    onTap: () {
+                      // Like logic
+                      controller.storyController.pause(); // Optional: pause for effect
+                      // Implement like logic here
+                      Future.delayed(const Duration(milliseconds: 200), () {
+                        controller.storyController.play();
+                      });
+                    },
+                  ),
+                  
+                  const SizedBox(width: 8),
+                  
+                  // Share Button
+                  _buildGlassActionButton(
+                    icon: IconlyBold.send,
+                    onTap: () {
+                      // Share logic
+                      controller.storyController.pause();
+                      // Implement share logic here
+                      // Example: Share.share(...)
+                      Future.delayed(const Duration(milliseconds: 500), () {
+                         controller.storyController.play();
+                      });
+                    },
+                  ),
+                ],
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildGlassActionButton({
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(30),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20), // Increased blur
+        child: Container(
+          width: 50,
+          height: 50,
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.2),
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: Colors.white.withOpacity(0.12), // Subtle border
+              width: 1,
+            ),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.white.withOpacity(0.12),
+                Colors.white.withOpacity(0.06),
+              ],
+            ),
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(30),
+              child: Icon(
+                icon,
+                color: Colors.white,
+                size: 26,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

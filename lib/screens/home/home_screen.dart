@@ -44,6 +44,9 @@ class _HomeScreenState extends State<HomeScreen>
   late AnimationController _calendarButtonController;
   late AnimationController _addButtonController;
 
+  late AnimationController _orbController;
+  late Animation<double> _orbAnimation;
+
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
   late Animation<double> _sessionButtonScale;
@@ -57,15 +60,30 @@ class _HomeScreenState extends State<HomeScreen>
 
   // Global key para acceder al GlobalSearchBar
   final GlobalKey<GlobalSearchBarState> _searchBarKey = GlobalKey<GlobalSearchBarState>();
+  
+  late PageController _pageController;
 
   @override
   void initState() {
     // Initialize animations
     _animationController = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
+        duration: const Duration(milliseconds: 800),
+        vsync: this,
     );
     
+    // Initialize Page Controller
+    _pageController = PageController(initialPage: 0);
+    
+    _orbController = AnimationController(
+      duration: const Duration(milliseconds: 2000), // Slow breathing
+      vsync: this,
+    )..repeat(reverse: true);
+
+    _orbAnimation = CurvedAnimation(
+      parent: _orbController,
+      curve: Curves.easeInOut,
+    );
+
     _sessionBtnController = AnimationController(
       duration: const Duration(milliseconds: 150),
       vsync: this,
@@ -133,6 +151,8 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void dispose() {
     _animationController.dispose();
+    _orbController.dispose();
+    _pageController.dispose();
     _sessionBtnController.dispose();
     _calendarButtonController.dispose();
     _addButtonController.dispose();
@@ -175,6 +195,20 @@ class _HomeScreenState extends State<HomeScreen>
     });
   }
 
+  void _onNavigationTap(int index) {
+      final HomeController homeController = Get.find();
+      if (homeController.pageIndex.value == index) return;
+      
+      homeController.pageIndex.value = index;
+      if (_pageController.hasClients) {
+        _pageController.animateToPage(
+          index, 
+          duration: const Duration(milliseconds: 300), 
+          curve: Curves.easeInOut
+        );
+      }
+  }
+
   @override
   Widget build(BuildContext context) {
     // Get Controllers
@@ -211,7 +245,7 @@ class _HomeScreenState extends State<HomeScreen>
                     GestureDetector(
                       onTap: () {
                         HapticFeedback.lightImpact();
-                        Get.toNamed(AppRoutes.profile);
+                        _onNavigationTap(4);
                       },
                       child: SizedBox(
                         width: 40,
@@ -322,8 +356,38 @@ class _HomeScreenState extends State<HomeScreen>
                     if (pageIndex != 0)
                       BannerAdHelper.showBannerAd(margin: pageIndex == 1 ? 8 : 0),
 
-                    // Show the body content
-                    Expanded(child: homeController.pages[pageIndex]),
+                    Expanded(
+                      child: PageView.builder(
+                        controller: _pageController,
+                        physics: const ClampingScrollPhysics(),
+                        onPageChanged: (index) {
+                          homeController.pageIndex.value = index;
+                        },
+                        itemCount: homeController.pages.length,
+                        itemBuilder: (context, index) {
+                          return AnimatedBuilder(
+                            animation: _pageController,
+                            builder: (context, child) {
+                              double value = 1.0;
+                              if (_pageController.position.haveDimensions) {
+                                value = _pageController.page! - index;
+                                value = (1 - (value.abs() * 0.15)).clamp(0.85, 1.0);
+                              }
+                              return Center(
+                                child: Transform.scale(
+                                  scale: Curves.easeOut.transform(value),
+                                  child: Opacity(
+                                    opacity: (1 - (1 - value) * 1.5).clamp(0.4, 1.0),
+                                    child: child,
+                                  ),
+                                ),
+                              );
+                            },
+                            child: homeController.pages[index],
+                          );
+                        },
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -375,167 +439,114 @@ class _HomeScreenState extends State<HomeScreen>
           ? null 
           : pageIndex == 2 // If in Videos section, show custom video nav bar
               ? _buildVideoNavigationBar(context, homeController, currentUer)
-              : Stack(
-              clipBehavior: Clip.none,
-              alignment: Alignment.bottomCenter,
-              children: [
-                // 1. Chill / Background Layer (Glass Pill)
-                Container(
-                  height: 110, // Increased to 110 to fix overflow
-                  margin: EdgeInsets.fromLTRB(16, 0, 16, 24 + MediaQuery.of(context).padding.bottom),
+              : Container(
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.of(context).padding.bottom > 0 
+                        ? MediaQuery.of(context).padding.bottom - 5 // Very close to bottom
+                        : 10,
+                    top: 10,
+                  ),
                   decoration: BoxDecoration(
-                    color: Colors.transparent,
-                    borderRadius: BorderRadius.circular(44),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.3),
-                        blurRadius: 30,
-                        offset: const Offset(0, 10),
-                        spreadRadius: 2,
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(44),
-                    child: BackdropFilter(
-                      filter: ui.ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: isDarkMode 
-                              ? const Color(0xFF0F0F0F).withOpacity(0.90) 
-                              : const Color(0xFFFFFFFF).withOpacity(0.90),
-                          borderRadius: BorderRadius.circular(44),
-                          border: Border.all(
-                            color: isDarkMode 
-                                ? Colors.white.withOpacity(0.1) 
-                                : Colors.white.withOpacity(0.6),
-                            width: 0.5,
-                          ),
-                        ),
+                    color: isDarkMode ? Colors.black : Colors.white,
+                    border: Border(
+                      top: BorderSide(
+                        color: isDarkMode ? const Color(0xFF1F1F1F) : Colors.grey[300]!,
+                        width: 0.5,
                       ),
                     ),
                   ),
-                ),
-
-                // 2. Navigation Items Layer (Transparent)
-                Container(
-                  height: 110,
-                  margin: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                  padding: EdgeInsets.zero, // Remove padding to fix overflow
-                  child: Theme(
-                    data: Theme.of(context).copyWith(
-                      splashColor: Colors.transparent,
-                      highlightColor: Colors.transparent,
-                      hoverColor: Colors.transparent,
-                      focusColor: Colors.transparent,
-                      canvasColor: Colors.transparent,
-                      visualDensity: VisualDensity.compact, // Tighter vertical spacing
-                    ),
-                    child: Transform.translate(
-                      offset: const Offset(0, -10), // Visually lift content without layout overflow
-                      child: BottomNavigationBar(
-                        backgroundColor: Colors.transparent,
-                      iconSize: 20, // Reduced icon size to fit layout shift
-                      elevation: 0,
-                      currentIndex: pageIndex,
-                      onTap: (int index) {
-                        if (index == 2) return; // Handled by floating button
-                        HapticFeedback.selectionClick();
-                        homeController.pageIndex.value = index;
-                      },
-                      type: BottomNavigationBarType.fixed,
-                      showSelectedLabels: true,
-                      showUnselectedLabels: true,
-                      selectedLabelStyle: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 11,
-                        height: 1.5,
-                        letterSpacing: -0.2,
-                      ),
-                      unselectedLabelStyle: const TextStyle(
-                        fontWeight: FontWeight.w500,
-                        fontSize: 10,
-                        height: 1.5,
-                        letterSpacing: -0.2,
-                      ),
-                      selectedItemColor: const Color(0xFF00E5FF),
-                      unselectedItemColor: isDarkMode
-                          ? const Color(0xFF94A3B8)
-                          : const Color(0xFF64748B),
-                      items: [
+                  child: SizedBox(
+                    height: 52, // Balanced compact height
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
                         // Chats
-                        BottomNavigationBarItem(
-                          label: 'chats'.tr,
-                          icon: Padding(
-                            padding: EdgeInsets.zero, // Removed padding to save space
-                            child: BadgeIndicator(
-                              icon: pageIndex == 0 ? IconlyBold.chat : IconlyLight.chat,
-                              isNew: chatController.newMessage,
-                            ),
-                          ),
+                        _buildNavItem(
+                          icon: pageIndex == 0 ? IconlyBold.chat : IconlyLight.chat,
+                          isSelected: pageIndex == 0,
+                          onTap: () => _onNavigationTap(0),
                         ),
                         // Contacts
-                        BottomNavigationBarItem(
-                          label: 'contacts'.tr,
-                          icon: Padding(
-                            padding: EdgeInsets.zero,
-                            child: Icon(
-                              pageIndex == 1 ? IconlyBold.user2 : IconlyLight.user2,
-                            ),
-                          ),
+                        _buildNavItem(
+                          icon: pageIndex == 1 ? IconlyBold.user2 : IconlyLight.user2,
+                          isSelected: pageIndex == 1,
+                          onTap: () => _onNavigationTap(1),
                         ),
-                        // DUMMY CENTER
-                        const BottomNavigationBarItem(
-                          label: '',
-                          icon: SizedBox(height: 30, width: 60),
+                        // CENTER: BREATHING GLOWING ORB
+                        AnimatedBuilder(
+                          animation: _orbAnimation,
+                          builder: (context, child) {
+                            return GestureDetector(
+                              onTap: () {
+                                HapticFeedback.mediumImpact();
+                                _onNavigationTap(2);
+                              },
+                              child: Transform.scale(
+                                scale: 1.0 + (0.05 * _orbAnimation.value), // Subtle pulsing scale
+                                child: Container(
+                                  width: 56, 
+                                  height: 56,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      // Inner intense glow (Breathing)
+                                      BoxShadow(
+                                        color: const Color(0xFF00E5FF).withOpacity(0.4 + (0.2 * _orbAnimation.value)),
+                                        blurRadius: 15 + (10 * _orbAnimation.value),
+                                        spreadRadius: 0,
+                                      ),
+                                      // Outer ambient glow (Breathing)
+                                      BoxShadow(
+                                        color: const Color(0xFF00E5FF).withOpacity(0.1 + (0.1 * _orbAnimation.value)),
+                                        blurRadius: 30 + (10 * _orbAnimation.value),
+                                        spreadRadius: 2 + (4 * _orbAnimation.value),
+                                      ),
+                                    ],
+                                  ),
+                                  child: ClipOval(
+                                    child: Transform.scale(
+                                      scale: 1.7, 
+                                      child: Image.asset(
+                                        'assets/images/orb.gif',
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
                         ),
                         // Calls
-                        BottomNavigationBarItem(
-                          label: 'calls'.tr,
-                          icon: Padding(
-                            padding: const EdgeInsets.only(bottom: 4),
-                            child: Icon(
-                              pageIndex == 3 ? IconlyBold.call : IconlyLight.call,
-                            ),
-                          ),
+                        _buildNavItem(
+                          icon: pageIndex == 3 ? IconlyBold.call : IconlyLight.call,
+                          isSelected: pageIndex == 3,
+                          onTap: () => _onNavigationTap(3),
                         ),
-                        // Profile / Settings
-                        BottomNavigationBarItem(
-                          label: '', 
-                          icon: Padding(
-                            padding: EdgeInsets.zero,
-                            child: SizedBox(
-                              width: 38, // Maximized size
-                              height: 38, 
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(19),
-                                child: CachedCircleAvatar(
-                                  imageUrl: currentUer.photoUrl,
-                                  iconSize: currentUer.photoUrl.isEmpty ? 20 : null,
-                                  radius: 19,
-                                ),
+                        // Profile
+                        GestureDetector(
+                          onTap: () {
+                            HapticFeedback.lightImpact();
+                            _onNavigationTap(4);
+                          },
+                          child: Container(
+                            width: 42, // Increased to 42
+                            height: 42, // Increased to 42
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: pageIndex == 4 
+                                    ? (isDarkMode ? Colors.white : Colors.black) 
+                                    : Colors.transparent,
+                                width: 1.5,
                               ),
                             ),
-                          ),
-                          activeIcon: Padding(
-                            padding: EdgeInsets.zero,
-                            child: Container(
-                              width: 38, // Maximized size
-                              height: 38,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: const Color(0xFF00E5FF),
-                                  width: 1.5,
-                                ),
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(19),
-                                child: CachedCircleAvatar(
-                                  imageUrl: currentUer.photoUrl,
-                                  iconSize: currentUer.photoUrl.isEmpty ? 20 : null,
-                                  radius: 19,
-                                ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(21),
+                              child: CachedCircleAvatar(
+                                imageUrl: currentUer.photoUrl,
+                                iconSize: currentUer.photoUrl.isEmpty ? 21 : null,
+                                radius: 21,
                               ),
                             ),
                           ),
@@ -544,40 +555,54 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                   ),
                 ),
-                ),
-
-                // 3. Floating Orb Layer (The Pop-out)
-                Positioned(
-                  bottom: 78, // Raised to align with lifted icons
-                  child: GestureDetector(
-                    onTap: () {
-                      HapticFeedback.selectionClick();
-                      homeController.pageIndex.value = 2; // Index for Orb/Videos
-                    },
-                    child: Container(
-                      width: 60,
-                      height: 60,
-                      decoration: const BoxDecoration(
-                        color: Colors.black, // Pure black background
-                        shape: BoxShape.circle,
-                      ),
-                      child: ClipOval(
-                        child: Transform.scale(
-                          scale: 1.5, // Larger internal scale to fill the smaller container
-                          child: Image.asset(
-                            'assets/images/orb.gif',
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
+              );
     });
   }
+
+  Widget _buildNavItem({
+    required IconData icon,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
+      behavior: HitTestBehavior.opaque,
+
+        child: TweenAnimationBuilder<Color?>(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+        tween: ColorTween(
+          begin: const Color(0xFF8E8E93), 
+          end: isSelected ? Colors.white : const Color(0xFF8E8E93), // Default tween values, will be overridden by builder logic
+        ),
+        builder: (context, color, child) {
+          final isDarkMode = Get.find<PreferencesController>().isDarkMode.value;
+          final effectiveColor = isSelected 
+              ? (isDarkMode ? Colors.white : Colors.black)
+              : (isDarkMode ? const Color(0xFF8E8E93) : const Color(0xFF6D6D70));
+              
+          return AnimatedScale(
+            scale: isSelected ? 1.15 : 1.0, 
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOutBack, // Subtle bounce effect
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Icon(
+                icon,
+                color: effectiveColor,
+                size: 26,
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+
 
   void _showSearchModal(BuildContext context, bool isDarkMode) {
     final GlobalSearchController controller = Get.put(GlobalSearchController());
@@ -949,85 +974,171 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Widget _buildVideoNavigationBar(BuildContext context, HomeController homeController, User currentUser) {
-    // Height reduced to be more compact
-    final double barHeight = 50 + MediaQuery.of(context).padding.bottom;
-    
+    final isDarkMode = Get.find<PreferencesController>().isDarkMode.value;
     return Container(
-      height: barHeight,
-      color: Colors.black.withOpacity(0.9), // Slightly transparent black
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly, // Distributed evenly
-        children: [
-          // 1. Chats
-          _AnimatedNavIcon(
-            icon: IconlyLight.chat,
-            onTap: () {
-              HapticFeedback.selectionClick();
-               homeController.pageIndex.value = 0;
-            },
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).padding.bottom > 0 
+            ? MediaQuery.of(context).padding.bottom - 5 // Very close to bottom
+            : 10,
+        top: 10,
+      ),
+      decoration: BoxDecoration(
+        color: isDarkMode ? Colors.black : Colors.white,
+        border: Border(
+          top: BorderSide(
+            color: isDarkMode ? const Color(0xFF1F1F1F) : Colors.grey[300]!,
+            width: 0.5,
           ),
-          
-          // 2. Contacts
-          _AnimatedNavIcon(
-            icon: IconlyLight.user2,
-            onTap: () {
-               HapticFeedback.selectionClick();
-               homeController.pageIndex.value = 1;
-            },
-          ),
+        ),
+      ),
+      child: SizedBox(
+        height: 52, // Balanced compact height
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround, // Match main bar spacing
+          children: [
+            // 1. Chats
+            _AnimatedNavIcon(
+              icon: IconlyLight.chat,
+              onTap: () {
+                HapticFeedback.selectionClick();
+                _onNavigationTap(0);
+              },
+              isActive: homeController.pageIndex.value == 0,
+              isDarkMode: isDarkMode,
+            ),
+            
+            // 2. Contacts
+            _AnimatedNavIcon(
+              icon: IconlyLight.user2,
+              onTap: () {
+                 HapticFeedback.selectionClick();
+                 _onNavigationTap(1);
+              },
+              isActive: homeController.pageIndex.value == 1,
+              isDarkMode: isDarkMode,
+            ),
           
           // 3. Center - Camera (Upload Action)
-        _AnimatedNavIcon(
-          icon: IconlyBold.camera, // Camera icon for uploading
-          isActive: true, // Special styling for active
-          onTap: () {
-            // Open upload modal
-             HapticFeedback.selectionClick();
-             // Find VideosController (it should be registered if we are in this tab)
-             if (Get.isRegistered<VideosController>()) {
-               final videosController = Get.find<VideosController>();
-               final isDarkMode = Get.find<PreferencesController>().isDarkMode.value;
-               showUploadVideoModal(context, videosController, isDarkMode);
-             }
-          },
-        ),
+          // 3. Center - BREATHING GLOWING ORB
+          GestureDetector(
+            onTap: () {
+               HapticFeedback.mediumImpact();
+               // Stay on page and open upload modal or just act as the Orb does.
+               // User asked for the Orb "here too". In main nav, Orb -> Index 2. 
+               // Here we are ALREADY at index 2.
+               // The original code opened upload modal. I should probably keep that behavior OR just make it congruent.
+               // Let's make it simply select index 2 (refresh/stay) effectively acting as "Home of Videos".
+               // Or I can trigger the upload modal if they tap it again?
+               // The request was "PUT IT HERE TOO", implying visual consistency.
+               // I will replace the ICON with the ORB.
+               
+               // If I strictly follow the visual request:
+               homeController.pageIndex.value = 2; 
+
+               // If I want to preserve the "Upload" functionality, I might lose it if I remove the logic.
+               // However, the Orb in the main nav goes to Index 2.
+               // If I am AT Index 2, and I tap the Orb, maybe I should open the upload modal?
+               // The previous code: 
+               /*
+               if (Get.isRegistered<VideosController>()) {
+                 final videosController = Get.find<VideosController>();
+                 final isDarkMode = Get.find<PreferencesController>().isDarkMode.value;
+                 showUploadVideoModal(context, videosController, isDarkMode);
+               }
+               */
+               // Use that logic? No, the user likely wants the "Orb Experience".
+               // I will stick to navigation behavior for consistency.
+               // Wait, if I lose the upload ability, that's bad.
+               // Use existing logic for onTap but new visuals.
+               if (Get.isRegistered<VideosController>()) {
+                 final videosController = Get.find<VideosController>();
+                 final isDarkMode = Get.find<PreferencesController>().isDarkMode.value;
+                 showUploadVideoModal(context, videosController, isDarkMode);
+               }
+            },
+            child: AnimatedBuilder(
+              animation: _orbAnimation,
+              builder: (context, child) {
+                return Transform.scale(
+                  scale: 1.0 + (0.05 * _orbAnimation.value),
+                  child: Container(
+                    width: 56, 
+                    height: 56,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                          // Inner intense glow (Breathing)
+                          BoxShadow(
+                            color: const Color(0xFF00E5FF).withOpacity(0.4 + (0.2 * _orbAnimation.value)),
+                            blurRadius: 15 + (10 * _orbAnimation.value),
+                            spreadRadius: 0,
+                          ),
+                          // Outer ambient glow (Breathing)
+                          BoxShadow(
+                            color: const Color(0xFF00E5FF).withOpacity(0.1 + (0.1 * _orbAnimation.value)),
+                            blurRadius: 30 + (10 * _orbAnimation.value),
+                            spreadRadius: 2 + (4 * _orbAnimation.value),
+                          ),
+                      ],
+                    ),
+                    child: ClipOval(
+                      child: Transform.scale(
+                        scale: 1.7, 
+                        child: Image.asset(
+                          'assets/images/orb.gif',
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
           
           // 4. Calls
           _AnimatedNavIcon(
             icon: IconlyLight.call,
             onTap: () {
                HapticFeedback.selectionClick();
-               homeController.pageIndex.value = 3;
+               _onNavigationTap(3);
             },
+            isActive: homeController.pageIndex.value == 3,
+            isDarkMode: isDarkMode,
           ),
           
           // 5. Profile
           GestureDetector(
             onTap: () {
                HapticFeedback.lightImpact();
-               Get.toNamed(AppRoutes.profile);
+               _onNavigationTap(4);
             },
             child: Container(
-              width: 26, // Smaller profile icon
-              height: 26,
+              width: 42, // Increased to 42
+              height: 42, // Increased to 42
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.white.withOpacity(0.5), width: 1.0),
+                border: Border.all(
+                  color: homeController.pageIndex.value == 4 
+                      ? (Get.find<PreferencesController>().isDarkMode.value ? Colors.white : Colors.black) 
+                      : (Get.find<PreferencesController>().isDarkMode.value ? Colors.white.withOpacity(0.5) : Colors.black.withOpacity(0.1)),
+                  width: homeController.pageIndex.value == 4 ? 1.5 : 1.0
+                ),
               ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(13),
+                borderRadius: BorderRadius.circular(21),
                 child: CachedCircleAvatar(
                   imageUrl: currentUser.photoUrl,
-                  radius: 13,
+                  radius: 21,
                 ),
               ),
             ),
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildRevolutGridItem({
     required IconData icon,
@@ -1467,11 +1578,13 @@ class _AnimatedNavIcon extends StatefulWidget {
   final IconData icon;
   final VoidCallback onTap;
   final bool isActive;
+  final bool? isDarkMode; // Make it optional for backward compatibility if used elsewhere
 
   const _AnimatedNavIcon({
     required this.icon,
     required this.onTap,
     this.isActive = false,
+    this.isDarkMode,
   });
 
   @override
@@ -1500,6 +1613,9 @@ class _AnimatedNavIconState extends State<_AnimatedNavIcon> with SingleTickerPro
 
   @override
   Widget build(BuildContext context) {
+    // Default to true (dark) if not provided, to match old behavior
+    final isDark = widget.isDarkMode ?? true; 
+    
     return GestureDetector(
       onTapDown: (_) => _controller.forward(),
       onTapUp: (_) {
@@ -1514,10 +1630,12 @@ class _AnimatedNavIconState extends State<_AnimatedNavIcon> with SingleTickerPro
           scale: _scaleAnimation,
           child: Icon(
             widget.icon,
-            color: widget.isActive ? Colors.white : Colors.white.withOpacity(0.7),
+            color: widget.isActive 
+                ? (isDark ? Colors.white : Colors.black)
+                : (isDark ? Colors.white.withOpacity(0.7) : Colors.black.withOpacity(0.5)),
             size: widget.isActive ? 26 : 24, // Active slightly larger
             shadows: [
-              if (widget.isActive)
+              if (widget.isActive && isDark)
                 const Shadow(
                   color: Colors.white54,
                   blurRadius: 8,

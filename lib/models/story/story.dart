@@ -186,4 +186,11 @@ class Story {
     if (userId == currentUserId) return true; // El dueño siempre puede ver
     return bestFriendsOnly.contains(currentUserId); // Solo mejores amigos
   }
+  
+  // Check if current user has viewed this story
+  bool hasUnviewedStories(String currentUserId) {
+    // If user is owner, consider it viewed (or handle differently if needed)
+    if (userId == currentUserId) return false;
+    return !viewers.contains(currentUserId);
+  }
 }

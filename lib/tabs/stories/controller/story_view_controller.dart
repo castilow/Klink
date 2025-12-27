@@ -8,6 +8,7 @@ import 'package:chat_messenger/models/story/submodels/story_text.dart' as txt;
 import 'package:chat_messenger/models/story/submodels/story_image.dart' as img;
 import 'package:chat_messenger/models/story/submodels/story_video.dart' as vdo;
 import 'package:chat_messenger/models/story/submodels/story_music.dart';
+import 'package:chat_messenger/helpers/dialog_helper.dart';
 import 'package:get/get.dart';
 import 'package:story_view/story_view.dart';
 import 'package:just_audio/just_audio.dart';
@@ -23,9 +24,22 @@ class StoryViewController extends GetxController {
   final List<dynamic> items = [];
   final RxInt index = RxInt(0);
 
-  dynamic get storyItem => items[index.value];
-  DateTime get createdAt => items[index.value].createdAt;
-  List<SeenBy> get seenByList => items[index.value].seenBy;
+  dynamic get storyItem {
+    if (items.isEmpty || index.value >= items.length) {
+      return null;
+    }
+    return items[index.value];
+  }
+  
+  DateTime get createdAt {
+    if (storyItem == null) return DateTime.now();
+    return storyItem.createdAt;
+  }
+  
+  List<SeenBy> get seenByList {
+    if (storyItem == null) return [];
+    return storyItem.seenBy;
+  }
   
   // Audio player para música de fondo
   final AudioPlayer _audioPlayer = AudioPlayer();
@@ -34,9 +48,39 @@ class StoryViewController extends GetxController {
   StreamSubscription<PlayerState>? _playerStateSubscription;
   StoryMusic? _currentPlayingMusic;
   
+  @override
+  void onInit() {
+    super.onInit();
+    // Configurar volumen y velocidad por defecto
+    _audioPlayer.setVolume(1.0);
+    _audioPlayer.setSpeed(1.0);
+    
+    _loadStoryItems();
+    
+    // Si no hay items válidos, cerrar la pantalla
+    if (storyItems.isEmpty) {
+      debugPrint('⚠️ [STORY_VIEW] No hay items válidos en la historia, cerrando...');
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Get.back();
+        DialogHelper.showSnackbarMessage(
+          SnackMsgType.error,
+          'Esta historia no tiene contenido disponible',
+        );
+      });
+      return;
+    }
+    
+    // Reproducir música del primer item si tiene
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _playMusicForCurrentItem();
+    });
+  }
+  
   // Obtener música del item actual
   StoryMusic? get currentMusic {
     final item = storyItem;
+    if (item == null) return null;
+    
     if (item is txt.StoryText) {
       return item.music;
     } else if (item is img.StoryImage) {
@@ -61,15 +105,6 @@ class StoryViewController extends GetxController {
     });
   }
 
-  @override
-  void onInit() {
-    _loadStoryItems();
-    // Reproducir música del primer item si tiene
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _playMusicForCurrentItem();
-    });
-    super.onInit();
-  }
 
   @override
   void onClose() {
@@ -100,13 +135,21 @@ class StoryViewController extends GetxController {
 
   // Load all story items (solo items válidos, no expirados)
   void _loadStoryItems() {
+    debugPrint('📚 [STORY_VIEW] Cargando items de historia: ${story.id}');
+    debugPrint('📚 [STORY_VIEW] Textos válidos: ${story.validTexts.length}');
+    debugPrint('📚 [STORY_VIEW] Imágenes válidas: ${story.validImages.length}');
+    debugPrint('📚 [STORY_VIEW] Videos válidos: ${story.validVideos.length}');
+    
     // <-- Get valid story texts -->
     for (final txt.StoryText storyText in story.validTexts) {
+      // Si tiene música, la historia dura 30 segundos
+      final hasMusic = storyText.music != null;
       storyItems.add(
         StoryItem.text(
           title: storyText.text,
           backgroundColor: storyText.bgColor,
           textStyle: const TextStyle(fontSize: 24, color: Colors.white),
+          duration: hasMusic ? const Duration(seconds: 30) : null,
         ),
       );
       items.add(storyText);
@@ -114,24 +157,40 @@ class StoryViewController extends GetxController {
 
     // <-- Get valid story images -->
     for (final storyImage in story.validImages) {
+      // Si tiene música, la historia dura 30 segundos
+      final hasMusic = storyImage.music != null;
       storyItems.add(
         StoryItem.pageImage(
-            url: storyImage.imageUrl, controller: storyController),
+            url: storyImage.imageUrl, 
+            controller: storyController,
+            imageFit: BoxFit.cover,
+            duration: hasMusic ? const Duration(seconds: 30) : null,
+        ),
       );
       items.add(storyImage);
     }
 
     // <-- Get valid story videos -->
     for (final storyVideo in story.validVideos) {
+      // Si tiene música, la historia dura 30 segundos
+      final hasMusic = storyVideo.music != null;
       storyItems.add(
-        StoryItem.pageVideo(storyVideo.videoUrl, controller: storyController),
+        StoryItem.pageVideo(
+            storyVideo.videoUrl, 
+            controller: storyController,
+            imageFit: BoxFit.cover,
+            duration: hasMusic ? const Duration(seconds: 30) : null,
+        ),
       );
       items.add(storyVideo);
     }
+    
+    debugPrint('📚 [STORY_VIEW] Total items cargados: ${storyItems.length}');
   }
 
   void markSeen() {
     if (story.isOwner) return;
+    if (storyItem == null) return;
 
     // Check current user in the list
     final bool isSeen = seenByList
@@ -151,6 +210,13 @@ class StoryViewController extends GetxController {
   }
 
   Map<String, dynamic> get reportStoryItemData {
+    if (storyItem == null) {
+      return {
+        'userId': story.userId,
+        'type': '',
+      };
+    }
+    
     final Map<String, dynamic> data = storyItem.toMap();
     data.remove('seenBy');
 
@@ -169,11 +235,13 @@ class StoryViewController extends GetxController {
   }
 
   void deleteStoryItem() {
+    if (storyItem == null) return;
     StoryApi.deleteStoryItem(story: story, storyItem: storyItem);
   }
 
   // Reproducir música para el item actual
   Future<void> _playMusicForCurrentItem() async {
+    debugPrint('🎵 [STORY_VIEW] _playMusicForCurrentItem llamado, índice: ${index.value}');
     final music = currentMusic;
     
     // Si no hay música, detener y salir
@@ -182,6 +250,9 @@ class StoryViewController extends GetxController {
       await _stopMusic();
       return;
     }
+    
+    debugPrint('🎵 [STORY_VIEW] Música encontrada: ${music.trackName} - ${music.artistName}');
+    debugPrint('🎵 [STORY_VIEW] Preview URL: ${music.previewUrl}');
     
     // Si es la misma música que ya está reproduciendo, verificar que esté reproduciéndose
     if (_currentPlayingMusic?.trackId == music.trackId && 
@@ -192,6 +263,7 @@ class StoryViewController extends GetxController {
         return;
       } else {
         debugPrint('🎵 [STORY_VIEW] Misma música pero no está reproduciéndose, reiniciando...');
+        debugPrint('🎵 [STORY_VIEW] Estado actual: ${state.processingState}, playing: ${state.playing}');
         // Reiniciar la reproducción
         await _stopMusic();
         await Future.delayed(const Duration(milliseconds: 150));
@@ -209,6 +281,7 @@ class StoryViewController extends GetxController {
     }
     
     _currentPlayingMusic = music;
+    debugPrint('🎵 [STORY_VIEW] Llamando _loadAndPlayMusic...');
     await _loadAndPlayMusic(music);
   }
 
@@ -221,8 +294,22 @@ class StoryViewController extends GetxController {
       
       String? audioUrl;
       
+      // PRIMERO: Verificar si previewUrl es de Audius (música completa)
+      if (music.previewUrl.isNotEmpty && 
+          (music.previewUrl.contains('audius.co') || music.previewUrl.contains('audius'))) {
+        debugPrint('🎵 [STORY_VIEW] URL de Audius detectada (música completa)');
+        audioUrl = music.previewUrl;
+      }
+      // SEGUNDO: Verificar si previewUrl es de SoundCloud (música completa, puede ser HLS)
+      else if (music.previewUrl.isNotEmpty && 
+               (music.previewUrl.contains('soundcloud.com') || 
+                music.previewUrl.contains('api.soundcloud.com') ||
+                music.previewUrl.contains('.m3u8'))) {
+        debugPrint('🎵 [STORY_VIEW] URL de SoundCloud detectada (música completa, formato HLS o stream)');
+        audioUrl = music.previewUrl;
+      }
       // Si tiene YouTube Video ID, usar ese
-      if (music.youtubeVideoId != null && music.youtubeVideoId!.isNotEmpty) {
+      else if (music.youtubeVideoId != null && music.youtubeVideoId!.isNotEmpty) {
         debugPrint('🎵 [STORY_VIEW] Usando YouTube Video ID: ${music.youtubeVideoId}');
         audioUrl = await _getYouTubeAudioUrl(music.youtubeVideoId!);
       }
@@ -235,11 +322,15 @@ class StoryViewController extends GetxController {
           audioUrl = await _getYouTubeAudioUrl(videoId);
         }
       }
-      // Si tiene preview URL de Spotify, usar esa
+      // Si tiene preview URL de Spotify u otra plataforma, usar esa
       else if (music.previewUrl.isNotEmpty && 
                !music.previewUrl.contains('youtube.com') && 
-               !music.previewUrl.contains('youtu.be')) {
-        debugPrint('🎵 [STORY_VIEW] Usando preview URL de Spotify');
+               !music.previewUrl.contains('youtu.be') &&
+               !music.previewUrl.contains('audius.co') &&
+               !music.previewUrl.contains('audius') &&
+               !music.previewUrl.contains('soundcloud.com') &&
+               !music.previewUrl.contains('api.soundcloud.com')) {
+        debugPrint('🎵 [STORY_VIEW] Usando preview URL (Spotify u otra plataforma)');
         audioUrl = music.previewUrl;
       }
       // Si no hay URL, intentar buscar en YouTube usando el nombre de la canción
@@ -293,17 +384,37 @@ class StoryViewController extends GetxController {
         debugPrint('⚠️ [STORY_VIEW] Error deteniendo audio anterior: $e');
       }
       
+      // Configurar volumen y modo de audio antes de cargar
+      await _audioPlayer.setVolume(1.0);
+      await _audioPlayer.setSpeed(1.0);
+      
       // Cargar audio usando AudioSource para mejor control
       try {
         final audioSource = AudioSource.uri(Uri.parse(audioUrl));
         await _audioPlayer.setAudioSource(audioSource);
         debugPrint('✅ [STORY_VIEW] Audio source cargado');
+        // Forzar play inmediatamente para iniciar la carga
+        try {
+          await _audioPlayer.play();
+          await Future.delayed(const Duration(milliseconds: 300));
+          await _audioPlayer.pause();
+        } catch (e) {
+          debugPrint('⚠️ [STORY_VIEW] Error en play inicial (puede ser normal): $e');
+        }
       } catch (e) {
         debugPrint('❌ [STORY_VIEW] Error cargando audio source: $e');
         // Fallback a setUrl
         try {
           await _audioPlayer.setUrl(audioUrl);
           debugPrint('✅ [STORY_VIEW] Audio cargado con setUrl (fallback)');
+          // Forzar play inmediatamente para iniciar la carga
+          try {
+            await _audioPlayer.play();
+            await Future.delayed(const Duration(milliseconds: 300));
+            await _audioPlayer.pause();
+          } catch (e2) {
+            debugPrint('⚠️ [STORY_VIEW] Error en play inicial con setUrl (puede ser normal): $e2');
+          }
         } catch (e2) {
           debugPrint('❌ [STORY_VIEW] Error con setUrl también: $e2');
           return;
@@ -346,9 +457,12 @@ class StoryViewController extends GetxController {
       });
       
       // Esperar a que el audio esté listo (ready o buffering)
+      // Dar tiempo para que el audio se cargue después del play/pause inicial
+      await Future.delayed(const Duration(milliseconds: 500));
+      
       int attempts = 0;
       bool isReady = false;
-      while (attempts < 20) {
+      while (attempts < 30) {
         final state = _audioPlayer.playerState;
         if (state.processingState == ProcessingState.ready) {
           debugPrint('✅ [STORY_VIEW] Audio listo para reproducir (ready)');
@@ -361,6 +475,18 @@ class StoryViewController extends GetxController {
         } else if (state.processingState == ProcessingState.loading) {
           debugPrint('⏳ [STORY_VIEW] Audio cargando... (intento ${attempts + 1})');
           await Future.delayed(const Duration(milliseconds: 200));
+        } else if (state.processingState == ProcessingState.idle) {
+          debugPrint('⏳ [STORY_VIEW] Audio en estado idle... (intento ${attempts + 1}), intentando forzar carga...');
+          // Si está en idle, intentar forzar la carga
+          try {
+            await _audioPlayer.setVolume(1.0);
+            await _audioPlayer.play();
+            await Future.delayed(const Duration(milliseconds: 400));
+            await _audioPlayer.pause();
+          } catch (e) {
+            debugPrint('⚠️ [STORY_VIEW] Error forzando carga: $e');
+          }
+          await Future.delayed(const Duration(milliseconds: 200));
         } else {
           await Future.delayed(const Duration(milliseconds: 200));
         }
@@ -371,38 +497,90 @@ class StoryViewController extends GetxController {
         debugPrint('⚠️ [STORY_VIEW] Audio no está listo después de ${attempts} intentos, intentando reproducir de todas formas...');
       }
       
-      // Ir al tiempo de inicio
-      try {
-        await _audioPlayer.seek(startTime);
-        debugPrint('✅ [STORY_VIEW] Seek a ${startTime.inSeconds}s completado');
-      } catch (e) {
-        debugPrint('⚠️ [STORY_VIEW] Error en seek inicial: $e');
-      }
-      
-      // Esperar un poco para asegurar que el seek se complete
-      await Future.delayed(const Duration(milliseconds: 200));
-      
-      // Verificar estado antes de reproducir
-      final currentState = _audioPlayer.playerState;
-      if (currentState.processingState == ProcessingState.ready || 
-          currentState.processingState == ProcessingState.buffering) {
-        // Reproducir automáticamente (como Instagram)
+      // Intentar reproducir con múltiples intentos (especialmente importante para Audius)
+      bool playbackStarted = false;
+      for (int attempt = 0; attempt < 15; attempt++) {
         try {
-          await _audioPlayer.play();
-          debugPrint('✅ [STORY_VIEW] Música iniciada desde ${startTime.inSeconds}s por ${segmentDuration.inSeconds}s (loop activo)');
+          final currentState = _audioPlayer.playerState;
+          debugPrint('🎵 [STORY_VIEW] Intento ${attempt + 1}: Estado actual = ${currentState.processingState}, playing = ${currentState.playing}');
           
-          // Verificar que realmente esté reproduciéndose después de un momento
-          await Future.delayed(const Duration(milliseconds: 500));
-          final verifyState = _audioPlayer.playerState;
-          if (!verifyState.playing) {
-            debugPrint('⚠️ [STORY_VIEW] El audio no está reproduciéndose, intentando de nuevo...');
-            await _audioPlayer.play();
+          // Asegurar volumen y velocidad siempre
+          await _audioPlayer.setVolume(1.0);
+          await _audioPlayer.setSpeed(1.0);
+          
+          // Si está en idle, intentar forzar la carga primero
+          if (currentState.processingState == ProcessingState.idle) {
+            debugPrint('🔄 [STORY_VIEW] Estado idle, forzando carga del audio...');
+            // Intentar play para forzar la carga
+            try {
+              await _audioPlayer.play();
+              await Future.delayed(const Duration(milliseconds: 600));
+              // Verificar si ahora está cargando
+              final newState = _audioPlayer.playerState;
+              if (newState.processingState == ProcessingState.idle && !newState.playing) {
+                await _audioPlayer.pause();
+                await Future.delayed(const Duration(milliseconds: 200));
+              }
+            } catch (e) {
+              debugPrint('⚠️ [STORY_VIEW] Error en play para forzar carga: $e');
+            }
+            await Future.delayed(const Duration(milliseconds: 300));
+          }
+          
+          // Verificar estado actual después de intentar forzar carga
+          final state = _audioPlayer.playerState;
+          
+          // Intentar reproducir en cualquier estado excepto completed
+          if (state.processingState != ProcessingState.completed) {
+            // Ir al tiempo de inicio (solo si el audio está listo o buffering)
+            if (state.processingState == ProcessingState.ready || 
+                state.processingState == ProcessingState.buffering) {
+              try {
+                await _audioPlayer.seek(startTime);
+                debugPrint('✅ [STORY_VIEW] Seek a ${startTime.inSeconds}s completado');
+                await Future.delayed(const Duration(milliseconds: 200));
+              } catch (e) {
+                debugPrint('⚠️ [STORY_VIEW] Error en seek: $e');
+              }
+            }
+            
+            // Intentar reproducir
+            try {
+              await _audioPlayer.play();
+              debugPrint('✅ [STORY_VIEW] Intento ${attempt + 1}: Play() llamado');
+              
+              // Verificar que realmente esté reproduciéndose
+              await Future.delayed(const Duration(milliseconds: 1000));
+              final verifyState = _audioPlayer.playerState;
+              debugPrint('🎵 [STORY_VIEW] Estado después de play: ${verifyState.processingState}, playing: ${verifyState.playing}');
+              
+              if (verifyState.playing) {
+                debugPrint('✅ [STORY_VIEW] Música confirmada reproduciéndose (intento ${attempt + 1})');
+                playbackStarted = true;
+                break; // Éxito, salir del loop
+              } else {
+                debugPrint('⚠️ [STORY_VIEW] Intento ${attempt + 1}: Audio no está reproduciéndose aún (${verifyState.processingState})');
+              }
+            } catch (e) {
+              debugPrint('❌ [STORY_VIEW] Error llamando play() en intento ${attempt + 1}: $e');
+            }
+          } else {
+            debugPrint('⏳ [STORY_VIEW] Intento ${attempt + 1}: Estado completed, esperando...');
           }
         } catch (e) {
-          debugPrint('❌ [STORY_VIEW] Error reproduciendo audio: $e');
+          debugPrint('❌ [STORY_VIEW] Error en intento ${attempt + 1}: $e');
         }
-      } else {
-        debugPrint('⚠️ [STORY_VIEW] Audio no está en estado ready/buffering (${currentState.processingState}), no se puede reproducir');
+        
+        // Esperar antes del siguiente intento
+        if (!playbackStarted && attempt < 14) {
+          await Future.delayed(const Duration(milliseconds: 500));
+        }
+      }
+      
+      if (!playbackStarted) {
+        debugPrint('❌ [STORY_VIEW] No se pudo iniciar la reproducción después de 10 intentos');
+        final finalState = _audioPlayer.playerState;
+        debugPrint('❌ [STORY_VIEW] Estado final: ${finalState.processingState}, playing: ${finalState.playing}');
       }
       
     } catch (e) {

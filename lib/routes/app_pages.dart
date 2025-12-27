@@ -144,12 +144,24 @@ abstract class AppPages {
     GetPage(
       name: AppRoutes.messages,
       page: () {
-        final args = Get.arguments as Map<String, dynamic>;
-        return MessageScreen(
-          isGroup: args['isGroup'] as bool,
-          user: args['user'] as User?,
-          groupId: args['groupId'] as String?,
-        );
+        // Manejar ambos casos: User directamente o Map con argumentos
+        if (Get.arguments is User) {
+          // Si se pasa un User directamente (desde chats_screen)
+          final user = Get.arguments as User;
+          return MessageScreen(
+            isGroup: false,
+            user: user,
+            groupId: null,
+          );
+        } else {
+          // Si se pasa un Map (desde routes_helper)
+          final args = Get.arguments as Map<String, dynamic>;
+          return MessageScreen(
+            isGroup: args['isGroup'] as bool? ?? false,
+            user: args['user'] as User?,
+            groupId: args['groupId'] as String?,
+          );
+        }
       },
       // Transición de apertura del chat deslizándose hacia la izquierda (entrada desde la derecha)
 

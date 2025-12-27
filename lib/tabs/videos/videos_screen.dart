@@ -83,24 +83,7 @@ class _VideosScreenState extends State<VideosScreen> with WidgetsBindingObserver
         backgroundColor: Colors.black,
         extendBody: true,
         extendBodyBehindAppBar: true,
-        body: PageView(
-          controller: horizontalPageController,
-          scrollDirection: Axis.horizontal,
-          physics: const ClampingScrollPhysics(),
-          onPageChanged: (index) {
-            // Si cambiamos a la página de cámara (index 0), pausar videos
-            if (index == 0) {
-              controller.pauseAllVideos();
-            }
-          },
-          children: [
-            // Page 0: Camera/Upload Screen
-            _CameraUploadScreen(controller: controller, isDarkMode: isDarkMode),
-            
-            // Page 1: Video Feed
-            _buildVideoFeed(context, controller, isDarkMode),
-          ],
-        ),
+        body: _buildVideoFeed(context, controller, isDarkMode),
       );
     });
   }
@@ -137,18 +120,20 @@ class _VideosScreenState extends State<VideosScreen> with WidgetsBindingObserver
             );
           },
         ),
-        // Back Button
+
+        
+        // Plus Button (Add Video) - Top Right
         Positioned(
           top: 0,
-          left: 0,
+          right: 0,
           child: SafeArea(
             child: Padding(
-              padding: const EdgeInsets.only(left: 16.0, top: 12.0),
+              padding: const EdgeInsets.only(right: 16.0, top: 12.0),
               child: GestureDetector(
                 onTap: () {
-                  // Pause video before leaving
-                  controller.pauseAllVideos();
-                  Get.back();
+                  // Open upload modal
+                  HapticFeedback.mediumImpact();
+                  showUploadVideoModal(context, controller, isDarkMode);
                 },
                 child: Container(
                   padding: const EdgeInsets.all(8),
@@ -158,9 +143,9 @@ class _VideosScreenState extends State<VideosScreen> with WidgetsBindingObserver
                     border: Border.all(color: Colors.white.withOpacity(0.1), width: 0.5),
                   ),
                   child: const Icon(
-                    Icons.arrow_back_ios_new_rounded,
+                    IconlyLight.plus,
                     color: Colors.white,
-                    size: 22,
+                    size: 24,
                     shadows: [
                       Shadow(
                         color: Colors.black45,

@@ -32,23 +32,32 @@ class ImageMessage extends StatelessWidget {
           maxHeight: MediaQuery.of(context).size.height * 0.4,
           minHeight: 120,
         ),
-        child: AspectRatio(
-          aspectRatio: 4 / 3, // Formato más rectangular y natural
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10), // 10px esquinas suaves
-              border: Border.all(
-                color: const Color(0xFFCCCCCC), // #ccc color
-                width: 1, // 1px borde fino
-              ),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(9), // Ligeramente menor para el clip interno
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                // Imagen (local o remota)
-                _buildImage(),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // Detectar si es sticker (generalmente cuadrados o pequeños)
+            final bool isLikelySticker = constraints.maxWidth < 200 || 
+                                        constraints.maxHeight < 200 ||
+                                        message.fileUrl.contains('sticker') ||
+                                        message.fileUrl.contains('giphy') ||
+                                        message.fileUrl.contains('tenor') ||
+                                        message.fileUrl.contains('openmoji');
+            
+            final double aspectRatio = isLikelySticker ? 1.0 : 4 / 3; // Cuadrado para stickers, 4:3 para fotos
+            
+            return AspectRatio(
+              aspectRatio: aspectRatio,
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10), // 10px esquinas suaves
+                  // Borde eliminado para stickers
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10), // Mismo radio que el contenedor
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                    // Imagen (local o remota)
+                    _buildImage(isLikelySticker),
                 
                 // Indicador de progreso circular compacto si se está subiendo
                 Obx(() {
@@ -109,21 +118,38 @@ class ImageMessage extends StatelessWidget {
                     ),
                   ),
                 ),
-                ],
+                    ],
+                  ),
+                ),
               ),
-            ),
-          ),
+            );
+          },
         ),
       ),
     );
   }
 
-  Widget _buildImage() {
+  Widget _buildImage([bool isSticker = false]) {
+    // Para stickers, usar contain para mantener calidad y proporción
+    final BoxFit fit = isSticker ? BoxFit.contain : BoxFit.cover;
+    
+    // Verificar si el fileUrl está vacío o no válido
+    if (message.fileUrl.isEmpty) {
+      return Container(
+        color: Colors.grey[300],
+        child: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+    
     // Si el fileUrl es un path local (empieza con /), usar File
     if (message.fileUrl.startsWith('/')) {
       return Image.file(
         File(message.fileUrl),
-        fit: BoxFit.cover,
+        fit: fit,
+        // Mejorar calidad de renderizado
+        filterQuality: FilterQuality.high,
         errorBuilder: (context, error, stackTrace) {
           return Container(
             color: Colors.grey[300],
@@ -135,9 +161,22 @@ class ImageMessage extends StatelessWidget {
           );
         },
       );
-    } else {
+    } else if (message.fileUrl.startsWith('http://') || message.fileUrl.startsWith('https://')) {
       // Es una URL remota, usar CachedCardImage
       return CachedCardImage(message.fileUrl);
+    } else {
+      // URL no válida o vacía
+      return Container(
+        color: Colors.grey[300],
+        child: const Center(
+          child: Icon(
+            Icons.broken_image,
+            size: 50,
+            color: Colors.grey,
+          ),
+        ),
+      );
     }
   }
 }
+

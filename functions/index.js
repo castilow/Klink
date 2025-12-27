@@ -159,20 +159,27 @@ exports.sendPushNotification = functions.https.onCall({
     }
 
     // Verificar si el usuario está activo en el chat (como WhatsApp)
+    // IMPORTANTE: Solo ocultar notificaciones si la app está en PRIMER PLANO
     let isUserActiveInChat = false;
+    let isAppInForeground = false;
+    
     if (type === 'message' && toUserId && chatId) {
       try {
         const presenceRef = admin.database().ref(`presence/${toUserId}`);
         const presenceSnap = await presenceRef.get();
         const presenceData = presenceSnap.val();
         
+        // Verificar si la app está en primer plano (isOnline indica que la app está activa)
+        isAppInForeground = presenceData?.isOnline === true;
+        
         // Verificar si está online y en el chat específico
         // Para chats 1-to-1, el chatId es el ID del otro usuario
-        isUserActiveInChat = presenceData?.isOnline && presenceData?.activeChatId === chatId;
+        isUserActiveInChat = isAppInForeground && presenceData?.activeChatId === chatId;
         
         console.log('[sendPushNotification] user presence check', { 
           toUserId, 
           isOnline: presenceData?.isOnline, 
+          isAppInForeground,
           activeChatId: presenceData?.activeChatId,
           targetChatId: chatId,
           isUserActiveInChat,
@@ -187,6 +194,9 @@ exports.sendPushNotification = functions.https.onCall({
         }
       } catch (error) {
         console.log('[sendPushNotification] presence check failed', error.message);
+        // Si falla la verificación, asumir que la app está en segundo plano
+        isAppInForeground = false;
+        isUserActiveInChat = false;
       }
     }
 
@@ -205,10 +215,12 @@ exports.sendPushNotification = functions.https.onCall({
     }
     
     // Preparar el mensaje según si el usuario está activo en el chat
+    // IMPORTANTE: Siempre incluir notification para asegurar que se muestre en segundo plano
     const message = {
       tokens,
-      // Si está activo en el chat, no mostrar notificación banner (solo sonido)
-      notification: isUserActiveInChat ? null : {
+      // Solo ocultar notificación si la app está en PRIMER PLANO y el usuario está en el chat
+      // Si la app está en segundo plano, siempre mostrar la notificación
+      notification: (isUserActiveInChat && isAppInForeground) ? null : {
         title,
         body: displayBody,
       },
@@ -234,8 +246,10 @@ exports.sendPushNotification = functions.https.onCall({
         },
         payload: {
           aps: {
-            // Si está activo en el chat, no mostrar alert (solo sonido)
-            ...(isUserActiveInChat ? {} : {
+            // IMPORTANTE: Siempre incluir alert para notificaciones en segundo plano
+            // Solo ocultar alert si la app está en PRIMER PLANO y el usuario está en el chat
+            // Si la app está en segundo plano, siempre mostrar la notificación
+            ...(isUserActiveInChat && isAppInForeground ? {} : {
               alert: {
                 title,
                 body: displayBody,
@@ -243,10 +257,11 @@ exports.sendPushNotification = functions.https.onCall({
             }),
             // Siempre reproducir sonido (incluso si está en el chat)
             sound: type === 'call' ? 'ringtone.wav' : 'default',
-            // Solo incrementar badge si no está activo en el chat
-            ...(isUserActiveInChat ? {} : { badge: 1 }),
-            // Para mensajes cuando está activo, usar content-available para procesamiento silencioso
-            ...(isUserActiveInChat && type === 'message' ? { 'content-available': 1 } : {}),
+            // Solo incrementar badge si no está activo en el chat o si la app está en segundo plano
+            ...(isUserActiveInChat && isAppInForeground ? {} : { badge: 1 }),
+            // Para mensajes cuando está activo en primer plano, usar content-available para procesamiento silencioso
+            // Pero si está en segundo plano, no usar content-available para asegurar que se muestre la notificación
+            ...(isUserActiveInChat && isAppInForeground && type === 'message' ? { 'content-available': 1 } : {}),
             ...(type === 'call' && { 'content-available': 1 }),
           },
         },

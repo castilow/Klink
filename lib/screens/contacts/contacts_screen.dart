@@ -13,6 +13,7 @@ import 'package:chat_messenger/theme/app_theme.dart';
 import 'package:get/get.dart';
 
 import 'components/contact_card.dart';
+import '../../tabs/chats/components/chat_search_bar.dart';
 
 class ContactsScreen extends GetView<ContactController> {
   const ContactsScreen({super.key});
@@ -22,47 +23,129 @@ class ContactsScreen extends GetView<ContactController> {
     final bool isDarkMode = AppTheme.of(context).isDarkMode;
     return Scaffold(
       backgroundColor: isDarkMode ? darkThemeBgColor : lightThemeBgColor,
-      appBar: CustomAppBar(
-        title: Text("contacts".tr),
-        actions: [
-          IconButton(
-            icon: const Icon(IconlyLight.search, color: Colors.white),
-            onPressed: () => Get.toNamed(AppRoutes.contactSearch),
-          ),
-          const SizedBox(width: 8),
-        ],
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Custom Header
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Title
+                  Text(
+                    "contacts".tr,
+                    style: TextStyle(
+                      fontSize: 34,
+                      fontWeight: FontWeight.bold,
+                      color: isDarkMode ? Colors.white : Colors.black,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Search Bar (Visual trigger)
+                  GestureDetector(
+                    onTap: () => Get.toNamed(AppRoutes.contactSearch),
+                    child: Container(
+                       height: 40,
+                       decoration: BoxDecoration(
+                         color: isDarkMode
+                             ? const Color(0xFF2A2A2A)
+                             : const Color(0xFFF1F5F9),
+                         borderRadius: BorderRadius.circular(12),
+                         border: isDarkMode
+                             ? Border.all(
+                                 color: const Color(0xFF404040).withOpacity(0.6),
+                                 width: 1,
+                               )
+                             : null,
+                       ),
+                       padding: const EdgeInsets.symmetric(horizontal: 16),
+                       child: Row(
+                         children: [
+                           Icon(
+                             IconlyLight.search,
+                             color: isDarkMode
+                                 ? const Color(0xFF9CA3AF)
+                                 : const Color(0xFF64748B),
+                             size: 20,
+                           ),
+                           const SizedBox(width: 12),
+                           Text(
+                             'search'.tr,
+                             style: TextStyle(
+                               color: isDarkMode
+                                   ? const Color(0xFF9CA3AF)
+                                   : const Color(0xFF64748B),
+                               fontSize: 16,
+                             ),
+                           ),
+                         ],
+                       ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Contact List
+            Expanded(
+              child: Obx(() {
+                // Check loading
+                if (controller.isLoading.value) {
+                  return const LoadingIndicator();
+                } else if (controller.contacts.isEmpty) {
+                  return NoData(
+                    iconData: IconlyBold.profile,
+                    text: 'no_contacts'.tr,
+                  );
+                }
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  physics: const BouncingScrollPhysics(),
+                  itemCount: controller.contacts.length,
+                  itemBuilder: (context, index) {
+                    final User user = controller.contacts[index];
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: ContactCard(
+                        user: user,
+                        onPress: () {
+                          Get.back();
+                          RoutesHelper.toMessages(user: user);
+                        },
+                      ),
+                    );
+                  },
+                );
+              }),
+            ),
+          ],
+        ),
       ),
-      body: Obx(() {
-        // Check loading
-        if (controller.isLoading.value) {
-          return const LoadingIndicator();
-        } else if (controller.contacts.isEmpty) {
-          return NoData(
-            iconData: IconlyBold.profile,
-            text: 'no_contacts'.tr,
-          );
-        }
-        return ListView.separated(
-          physics: const BouncingScrollPhysics(),
-          separatorBuilder: (_, __) => const Divider(height: 0),
-          itemCount: controller.contacts.length,
-          itemBuilder: (context, index) {
-            final User user = controller.contacts[index];
-            return ContactCard(
-              user: user,
-              onPress: () {
-                Get.back();
-                RoutesHelper.toMessages(user: user);
-              },
-            );
-          },
-        );
-      }),
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 165),
-        child: FloatingButton(
-          icon: IconlyBold.addUser,
-          onPress: () => Get.toNamed(AppRoutes.contactSearch),
+      floatingActionButton: Container(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF00E5FF), Color(0xFF2979FF)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(30),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF00E5FF).withOpacity(0.4),
+              blurRadius: 15,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: FloatingActionButton(
+          onPressed: () => Get.toNamed(AppRoutes.contactSearch),
+          elevation: 0,
+          backgroundColor: Colors.transparent,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+          child: const Icon(IconlyBold.addUser, color: Colors.white),
         ),
       ),
     );

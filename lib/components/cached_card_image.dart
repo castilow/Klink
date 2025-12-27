@@ -27,6 +27,11 @@ class CachedCardImage extends StatelessWidget {
       return CachedNetworkImage(
         fit: BoxFit.cover,
         imageUrl: imageUrl,
+        // Mejorar calidad: usar alta resolución en caché
+        memCacheWidth: 1024, // Máximo ancho en caché
+        memCacheHeight: 1024, // Máximo alto en caché
+        maxWidthDiskCache: 2048, // Máximo ancho en disco
+        maxHeightDiskCache: 2048, // Máximo alto en disco
         placeholder: (context, url) => Container(
           color: Colors.grey[300],
           child: const Center(

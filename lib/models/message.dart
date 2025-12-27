@@ -220,10 +220,11 @@ class Message {
       debugPrint('📸 Message.fromMap: Mensaje de imagen ${messageId}, fileUrl: ${fileUrl.isEmpty ? "VACÍO" : fileUrl.substring(0, fileUrl.length > 50 ? 50 : fileUrl.length)}...');
     }
     
-    return Message(
+    final String loadedSenderId = data['senderId'] ?? '';
+    final Message loadedMessage = Message(
       docRef: docRef,
       msgId: messageId,
-      senderId: data['senderId'] ?? '',
+      senderId: loadedSenderId,
       type: getMsgType(data['type']),
       textMsg: finalTextMessage,
       fileUrl: fileUrl,
@@ -248,6 +249,23 @@ class Message {
       viewOnce: data['viewOnce'] ?? false,
       viewedBy: viewedBy,
     );
+    
+    // Debug: Verificar senderId al cargar desde Firestore
+    if (getMsgType(data['type']) == MessageType.image) {
+      try {
+        final currentUserId = AuthController.instance.currentUser.userId;
+        debugPrint('📥 [STICKER] Mensaje cargado desde Firestore:');
+        debugPrint('   - msgId: $messageId');
+        debugPrint('   - senderId desde Firestore: $loadedSenderId');
+        debugPrint('   - currentUser.userId: $currentUserId');
+        debugPrint('   - isSender calculado: ${loadedMessage.isSender}');
+        debugPrint('   - type: ${getMsgType(data['type'])}');
+      } catch (e) {
+        debugPrint('⚠️ Error al verificar senderId: $e');
+      }
+    }
+    
+    return loadedMessage;
   }
 
   Map<String, dynamic> toMap({required bool isGroup}) {

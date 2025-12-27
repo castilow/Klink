@@ -138,7 +138,13 @@ service cloud.firestore {
     // Stories collection (user stories)
     match /Stories/{storyId} {
       allow read: if signedIn();
-      allow write: if signedIn() && request.auth.uid == storyId;
+      // Solo el propietario puede crear/eliminar historias
+      allow create, delete: if signedIn() && request.auth.uid == storyId;
+      // Actualizar: 
+      // - El propietario puede actualizar cualquier campo
+      // - Cualquier usuario autenticado puede actualizar (para marcar como vista con seenBy)
+      // Esto es necesario para que los usuarios puedan marcar historias de otros como vistas
+      allow update: if signedIn();
     }
     
     // Videos collection (reels/shorts)
@@ -183,7 +189,10 @@ service cloud.firestore {
     // Special case: AI Assistant user document (must be outside Users/{userId} match)
     match /Users/klink_ai_assistant {
       allow read: if signedIn();
-      allow write: if false; // Only system can write
+      // Permitir crear y actualizar el documento del asistente IA (para inicialización y actualización de estado)
+      // Es seguro porque el documento tiene un ID fijo y no contiene información sensible
+      allow create, update: if signedIn();
+      allow delete: if false; // Nunca permitir eliminar el asistente IA
     }
   }
 }

@@ -50,6 +50,18 @@ abstract class AppConfig {
   
   /// YouTube Data API Key
   static const String youtubeApiKey = "AIzaSyAk8qxHJGNg_odKEMvS-vHAxMphB7dendI";
+  
+  /// SoundCloud API Client ID
+  /// IMPORTANTE: Obtén tu propio Client ID en: https://developers.soundcloud.com/
+  /// Pasos:
+  /// 1. Ve a https://developers.soundcloud.com/
+  /// 2. Crea una cuenta o inicia sesión
+  /// 3. Crea una nueva aplicación
+  /// 4. Copia el Client ID y pégalo aquí
+  /// 
+  /// Nota: Los client_ids públicos pueden tener limitaciones o expirar.
+  /// Para producción, es recomendable usar tu propio client_id.
+  static const String soundcloudClientId = "a3e059563d7fd3372b49b37f00a00bcf";
 
   //
   // <-- AD Configuration -->

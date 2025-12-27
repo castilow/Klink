@@ -6,6 +6,7 @@ import 'package:chat_messenger/controllers/auth_controller.dart';
 import 'package:chat_messenger/tabs/chats/components/story_item.dart';
 import 'package:chat_messenger/tabs/stories/controller/story_controller.dart';
 import 'package:chat_messenger/tabs/stories/story_view_screen.dart';
+import 'package:chat_messenger/tabs/stories/story_feed_screen.dart';
 import 'package:chat_messenger/tabs/stories/story_camera_screen.dart';
 import 'package:chat_messenger/routes/app_routes.dart';
 import 'package:get/get.dart';
@@ -152,8 +153,15 @@ class StoriesSection extends StatelessWidget {
                       imageUrl: user.photoUrl,
                       name: user.fullname.split(' ')[0], // First name only
                       hasStory: true,
+                      isSeen: !story.hasUnviewedStories(currentUser.userId),
                       onTap: () {
-                        Get.to(() => StoryViewScreen(story: story));
+                        // Navigate to Story Feed starting at this user's story
+                         // We need to pass the list of 'otherStories' so we can swipe through them
+                         // Filter to ensure we only pass stories with users
+                        Get.to(() => StoryFeedScreen(
+                          stories: otherStories,
+                          initialIndex: storyIndex,
+                        ));
                       },
                     ),
                   ),

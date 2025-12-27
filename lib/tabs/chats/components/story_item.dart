@@ -7,6 +7,7 @@ class StoryItem extends StatelessWidget {
   final String name;
   final bool isMe;
   final bool hasStory;
+  final bool isSeen; // Add isSeen property
   final VoidCallback? onTap;
 
   const StoryItem({
@@ -15,6 +16,7 @@ class StoryItem extends StatelessWidget {
     required this.name,
     this.isMe = false,
     this.hasStory = true,
+    this.isSeen = false, // Add isSeen
     this.onTap,
   });
 
@@ -38,7 +40,11 @@ class StoryItem extends StatelessWidget {
                     height: 68,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      gradient: const LinearGradient(
+                      // If seen, show simple grey border. If not, show gradient.
+                      border: isSeen 
+                        ? Border.all(color: Colors.grey.withOpacity(0.3), width: 1.5)
+                        : null,
+                      gradient: isSeen ? null : const LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [
@@ -47,7 +53,7 @@ class StoryItem extends StatelessWidget {
                           Color(0xFF6228D7), // Purple
                         ],
                       ),
-                      boxShadow: [
+                      boxShadow: isSeen ? null : [
                         BoxShadow(
                           color: const Color(0xFF2979FF).withOpacity(0.3),
                           blurRadius: 8,
