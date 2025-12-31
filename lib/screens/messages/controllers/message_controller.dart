@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math';
-import 'dart:convert';
 
 import 'package:chat_messenger/api/chat_api.dart';
 import 'package:chat_messenger/api/message_api.dart';
@@ -27,7 +26,6 @@ import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
-import 'package:http/http.dart' as http;
 
 class MessageController extends GetxController {
   final bool isGroup;
@@ -114,10 +112,10 @@ class MessageController extends GetxController {
   Rx<Message?> currentPlayingMessage = Rx<Message?>(null);
   RxBool showAudioPlayerBar = false.obs;
   
-  // Image message update trigger
+  // Image message update trigger - usado para forzar reconstrucción cuando cambia fileUrl
   final RxInt imageMessageUpdateTrigger = RxInt(0);
   
-  // AI responding indicator
+  // AI responding state - usado para mostrar indicador de escritura de la IA
   final RxBool isAIResponding = RxBool(false);
 
   bool get isReplying => replyMessage.value != null;
@@ -1183,7 +1181,7 @@ class MessageController extends GetxController {
           location: location,
           videoThumbnail:
               isVideo ? (localVideoThumbnailPath ?? '') : '', // thumbnail local
-          senderId: currentUser.userId, // Asegurar que el senderId sea el usuario actual
+          senderId: currentUser.userId,
           isRead: false,
           replyMessage: replyMessage.value,
           isTemporary: isTemporary,
@@ -1191,14 +1189,6 @@ class MessageController extends GetxController {
           viewOnce: isViewOnce,
           viewedBy: isViewOnce ? [] : null,
         );
-
-        // Debug: Verificar que el senderId está correcto
-        debugPrint('📤 [STICKER] Mensaje temporal creado:');
-        debugPrint('   - msgId: $messageId');
-        debugPrint('   - senderId: ${tempMessage.senderId}');
-        debugPrint('   - currentUser.userId: ${currentUser.userId}');
-        debugPrint('   - isSender: ${tempMessage.isSender}');
-        debugPrint('   - type: $type');
 
         // Agregar mensaje temporal a la lista inmediatamente
         messages.insert(0, tempMessage);
@@ -1237,7 +1227,7 @@ class MessageController extends GetxController {
             videoThumbnail: isVideo
                 ? (videoThumbnailUrl ?? localVideoThumbnailPath ?? '')
                 : '',
-            senderId: currentUser.userId, // Asegurar que el senderId sea el usuario actual
+            senderId: currentUser.userId,
             isRead: isReceiverOnline,
             replyMessage: replyMessage.value,
             isTemporary: isTemporary,
@@ -1245,31 +1235,12 @@ class MessageController extends GetxController {
             viewOnce: isViewOnce,
             viewedBy: isViewOnce ? [] : null,
           );
-          
-          // Debug: Verificar que el senderId está correcto después de actualizar
-          debugPrint('📤 [STICKER] Mensaje actualizado:');
-          debugPrint('   - msgId: $messageId');
-          debugPrint('   - senderId: ${updatedMessage.senderId}');
-          debugPrint('   - currentUser.userId: ${currentUser.userId}');
-          debugPrint('   - isSender: ${updatedMessage.isSender}');
-          debugPrint('   - fileUrl: ${updatedMessage.fileUrl}');
-          
-          // Actualizar el mensaje en la lista reactiva correctamente
           messages[index] = updatedMessage;
-          // Forzar actualización de la lista reactiva
-          messages.refresh();
           
-          // Si es una imagen al asistente, procesarla después de que se suba
-          if (type == MessageType.image && 
-              user != null && 
-              user!.userId == 'klink_ai_assistant' && 
-              fileUrl != null && 
-              fileUrl!.isNotEmpty) {
-            debugPrint('🖼️ Imagen subida al asistente, procesando...');
-            _handleAssistantImageResponse(fileUrl!, textMsg ?? '¿Qué ves en esta imagen?');
+          // Incrementar trigger para forzar reconstrucción de mensajes de imagen
+          if (type == MessageType.image) {
+            imageMessageUpdateTrigger.value++;
           }
-        } else {
-          debugPrint('⚠️ No se encontró el mensaje con msgId: $messageId para actualizar');
         }
         break;
       default:
@@ -1284,7 +1255,6 @@ class MessageController extends GetxController {
     final isViewOnce = type == MessageType.audio && currentUser.audioViewOnceEnabled;
     
     debugPrint('📝 Enviando mensaje: isTemporary = $isTemporary, isViewOnce = $isViewOnce');
-    debugPrint('📝 fileUrl final: $fileUrl');
     
     // Calcular fecha de expiración si es temporal (PRUEBA: 1 minuto en lugar de 24 horas)
     DateTime? expiresAt;
@@ -1293,25 +1263,17 @@ class MessageController extends GetxController {
       debugPrint('⏰ Mensaje temporal creado (PRUEBA 1 minuto): expiresAt = ${expiresAt.toString()}');
     }
     
-    // Para mensajes con archivo, usar la URL final si está disponible, sino usar el path local temporal
-    String finalFileUrl = fileUrl ?? '';
-    if (finalFileUrl.isEmpty && file != null && (type == MessageType.image || type == MessageType.video || type == MessageType.doc || type == MessageType.audio)) {
-      // Si aún no se subió, usar el path local temporal
-      finalFileUrl = file!.path;
-      debugPrint('⚠️ Usando path local temporal: $finalFileUrl');
-    }
-    
     final Message message = Message(
       msgId: messageId,
       type: type,
       textMsg: textMsg ?? '',
-      fileUrl: finalFileUrl,
+      fileUrl: fileUrl ?? '',
       gifUrl: gifUrl ?? '',
       location: location,
       videoThumbnail: type == MessageType.video
           ? (videoThumbnailUrl ?? localVideoThumbnailPath ?? '')
           : '',
-      senderId: currentUser.userId, // Asegurar que el senderId sea el usuario actual
+      senderId: currentUser.userId,
       isRead: isReceiverOnline,
       replyMessage: replyMessage.value,
       isTemporary: isTemporary,
@@ -1319,15 +1281,6 @@ class MessageController extends GetxController {
       viewOnce: isViewOnce,
       viewedBy: isViewOnce ? [] : null,
     );
-    
-    // Debug: Verificar que el senderId está correcto en el mensaje final
-    debugPrint('📤 [STICKER] Mensaje final para enviar:');
-    debugPrint('   - msgId: $messageId');
-    debugPrint('   - senderId: ${message.senderId}');
-    debugPrint('   - currentUser.userId: ${currentUser.userId}');
-    debugPrint('   - isSender: ${message.isSender}');
-    debugPrint('   - type: $type');
-    debugPrint('   - fileUrl: ${message.fileUrl}');
 
     // Para mensajes sin archivo, agregar a la lista ahora
     if (type == MessageType.text || type == MessageType.location || type == MessageType.gif || type == MessageType.audio) {
@@ -1348,16 +1301,16 @@ class MessageController extends GetxController {
       MessageApi.sendMessage(message: message, receiver: user!);
       
       // Si es un mensaje de texto al asistente IA, obtener respuesta automática
-      // Nota: Las imágenes se procesan después de subirse (ver código en case MessageType.image)
       debugPrint('🔍 sendMessage: Verificando si es asistente...');
       debugPrint('🔍 sendMessage: type = $type, MessageType.text = ${MessageType.text}');
       debugPrint('🔍 sendMessage: user?.userId = ${user?.userId}');
+      debugPrint('🔍 sendMessage: textMsg = ${textMsg?.substring(0, textMsg.length > 20 ? 20 : textMsg.length)}');
       
       if (type == MessageType.text && user != null && user!.userId == 'klink_ai_assistant') {
-        debugPrint('✅ sendMessage: Es un mensaje de texto al asistente, llamando _handleAssistantResponse...');
+        debugPrint('✅ sendMessage: Es un mensaje al asistente, llamando _handleAssistantResponse...');
         _handleAssistantResponse(textMsg ?? '');
       } else {
-        debugPrint('❌ sendMessage: No es un mensaje de texto al asistente');
+        debugPrint('❌ sendMessage: No es un mensaje al asistente');
         debugPrint('   - type == MessageType.text: ${type == MessageType.text}');
         debugPrint('   - user != null: ${user != null}');
         debugPrint('   - user?.userId == klink_ai_assistant: ${user?.userId == 'klink_ai_assistant'}');
@@ -1376,6 +1329,9 @@ class MessageController extends GetxController {
     try {
       debugPrint('🔵 _handleAssistantResponse: Iniciando con mensaje: $userMessage');
       
+      // Marcar que la IA está respondiendo
+      isAIResponding.value = true;
+      
       // Verificar si el controlador está disponible, si no, inicializarlo
       AssistantController assistantController;
       try {
@@ -1387,76 +1343,28 @@ class MessageController extends GetxController {
         debugPrint('🔵 _handleAssistantResponse: AssistantController inicializado');
       }
       
-      // Llamar al asistente (esto guardará automáticamente la respuesta en Firestore)
-      debugPrint('🔵 _handleAssistantResponse: Llamando a askAssistant...');
-      final response = await assistantController.askAssistant(userMessage);
-      debugPrint('🔵 _handleAssistantResponse: Respuesta recibida: ${response?.substring(0, response.length > 50 ? 50 : response.length)}...');
+      // Observar el estado isTyping del AssistantController para sincronizar
+      final subscription = assistantController.isTyping.listen((isTyping) {
+        isAIResponding.value = isTyping;
+        debugPrint('🔵 _handleAssistantResponse: isAIResponding actualizado a $isTyping');
+      });
+      
+      try {
+        // Llamar al asistente (esto guardará automáticamente la respuesta en Firestore)
+        debugPrint('🔵 _handleAssistantResponse: Llamando a askAssistant...');
+        final response = await assistantController.askAssistant(userMessage);
+        debugPrint('🔵 _handleAssistantResponse: Respuesta recibida: ${response?.substring(0, response.length > 50 ? 50 : response.length)}...');
+      } finally {
+        // Cancelar la suscripción cuando termine
+        await subscription.cancel();
+      }
     } catch (e, stackTrace) {
       debugPrint('❌ Error obteniendo respuesta del asistente: $e');
       debugPrint('❌ StackTrace: $stackTrace');
-    }
-  }
-
-  /// Maneja la respuesta automática del asistente IA para imágenes desde URL
-  Future<void> _handleAssistantImageResponse(String imageUrl, String question) async {
-    try {
-      debugPrint('🖼️ _handleAssistantImageResponse: Iniciando con URL: $imageUrl');
-      
-      // Descargar la imagen desde la URL
-      final response = await http.get(Uri.parse(imageUrl));
-      
-      if (response.statusCode == 200) {
-        // Convertir a base64
-        final imageBytes = response.bodyBytes;
-        final imageBase64 = base64Encode(imageBytes);
-        
-        debugPrint('🖼️ _handleAssistantImageResponse: Imagen convertida a base64 (${imageBase64.length} caracteres)');
-        
-        // Verificar si el controlador está disponible
-        AssistantController assistantController;
-        try {
-          assistantController = Get.find<AssistantController>();
-        } catch (e) {
-          assistantController = Get.put(AssistantController());
-        }
-        
-        // Llamar al asistente con la imagen
-        await assistantController.askAssistantWithImage(question, imageBase64);
-        debugPrint('🖼️ _handleAssistantImageResponse: Respuesta procesada');
-      } else {
-        debugPrint('❌ Error descargando imagen: ${response.statusCode}');
-      }
-    } catch (e, stackTrace) {
-      debugPrint('❌ Error procesando imagen del asistente: $e');
-      debugPrint('❌ StackTrace: $stackTrace');
-    }
-  }
-
-  /// Maneja la respuesta automática del asistente IA para imágenes desde archivo local
-  Future<void> _handleAssistantImageResponseFromFile(File imageFile, String question) async {
-    try {
-      debugPrint('🖼️ _handleAssistantImageResponseFromFile: Iniciando con archivo: ${imageFile.path}');
-      
-      // Leer el archivo y convertir a base64
-      final imageBytes = await imageFile.readAsBytes();
-      final imageBase64 = base64Encode(imageBytes);
-      
-      debugPrint('🖼️ _handleAssistantImageResponseFromFile: Imagen convertida a base64 (${imageBase64.length} caracteres)');
-      
-      // Verificar si el controlador está disponible
-      AssistantController assistantController;
-      try {
-        assistantController = Get.find<AssistantController>();
-      } catch (e) {
-        assistantController = Get.put(AssistantController());
-      }
-      
-      // Llamar al asistente con la imagen
-      await assistantController.askAssistantWithImage(question, imageBase64);
-      debugPrint('🖼️ _handleAssistantImageResponseFromFile: Respuesta procesada');
-    } catch (e, stackTrace) {
-      debugPrint('❌ Error procesando imagen del asistente desde archivo: $e');
-      debugPrint('❌ StackTrace: $stackTrace');
+    } finally {
+      // Asegurar que se desactive el estado cuando termine (por si acaso)
+      isAIResponding.value = false;
+      debugPrint('🔵 _handleAssistantResponse: Finalizado, isAIResponding = false');
     }
   }
 

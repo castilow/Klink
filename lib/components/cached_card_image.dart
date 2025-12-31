@@ -9,23 +9,25 @@ class CachedCardImage extends StatelessWidget {
     super.key,
     this.placeholder = const SizedBox.shrink(),
     this.errorIconColor = primaryColor,
+    this.fit = BoxFit.cover,
   });
 
   // Variables
   final String imageUrl;
   final Widget placeholder;
   final Color errorIconColor;
+  final BoxFit fit;
 
   @override
   Widget build(BuildContext context) {
     // Check local asset
     if (imageUrl.startsWith('assets')) {
       // Get asset image for debug purposes
-      return Image.asset(imageUrl, fit: BoxFit.cover);
+      return Image.asset(imageUrl, fit: fit);
     } else {
       // Get network image
       return CachedNetworkImage(
-        fit: BoxFit.cover,
+        fit: fit,
         imageUrl: imageUrl,
         // Mejorar calidad: usar alta resolución en caché
         memCacheWidth: 1024, // Máximo ancho en caché

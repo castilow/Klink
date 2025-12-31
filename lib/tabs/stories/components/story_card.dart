@@ -276,7 +276,10 @@ class _StoryCardState extends State<StoryCard> with TickerProviderStateMixin {
     // Si hay imágenes válidas, mostrar la más reciente
     if (validImages.isNotEmpty) {
       final StoryImage storyImage = validImages.last;
-      return CachedCardImage(storyImage.imageUrl);
+      return CachedCardImage(
+        storyImage.imageUrl,
+        fit: BoxFit.cover, // Para las miniaturas usar cover está bien
+      );
     }
     
     // Si hay textos válidos, mostrar el más reciente

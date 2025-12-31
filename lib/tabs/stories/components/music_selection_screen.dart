@@ -43,6 +43,7 @@ class _MusicSelectionScreenState extends State<MusicSelectionScreen> {
   StreamSubscription<Duration>? _fallbackDurationSubscription;
   StreamSubscription<ap.PlayerState>? _fallbackStateSubscription;
   bool _hasAutoPlayed = false;
+  String? _audiusStreamUrl; // Guardar stream URL obtenido de Audius si no había previewUrl
   
   // Controladores para inputs de tiempo exacto
   final TextEditingController _startTimeController = TextEditingController();
@@ -76,25 +77,50 @@ class _MusicSelectionScreenState extends State<MusicSelectionScreen> {
       if (widget.track.previewUrl != null && widget.track.previewUrl!.isNotEmpty) {
         String audioUrl = widget.track.previewUrl!;
         
-        // Configurar volumen y modo de audio antes de cargar
-        await _audioPlayer.setVolume(1.0);
-        await _audioPlayer.setSpeed(1.0);
-        
-        // Verificar que la URL sea válida
+        // Verificar que la URL sea de Audius, no de YouTube o Spotify
         try {
           final uri = Uri.parse(audioUrl);
           if (!uri.hasScheme || (uri.scheme != 'http' && uri.scheme != 'https')) {
             throw Exception('URL inválida: $audioUrl');
           }
+          
+          // Solo aceptar URLs de Audius (audius.co, cultur3stake.com, figment.io)
+          final host = uri.host.toLowerCase();
+          final isAudius = host.contains('audius.co') || 
+                          host.contains('cultur3stake.com') || 
+                          host.contains('figment.io');
+          
+          if (!isAudius && (host.contains('youtube.com') || host.contains('spotify.com'))) {
+            debugPrint('⚠️ [MUSIC_SELECTION] URL no es de Audius, es de: $host');
+            // Si no es de Audius, intentar obtener stream URL de Audius usando el track ID
+            if (widget.track.id.isNotEmpty) {
+              debugPrint('🔍 [MUSIC_SELECTION] Intentando obtener stream URL de Audius con track ID: ${widget.track.id}');
+              final streamUrl = await MusicApi.getAudiusStreamUrl(widget.track.id);
+              if (streamUrl != null && streamUrl.isNotEmpty) {
+                audioUrl = streamUrl;
+                _audiusStreamUrl = streamUrl;
+                debugPrint('✅ [MUSIC_SELECTION] Stream URL de Audius obtenido: ${streamUrl.substring(0, streamUrl.length > 50 ? 50 : streamUrl.length)}...');
+              } else {
+                throw Exception('No se pudo obtener stream URL de Audius');
+              }
+            } else {
+              throw Exception('URL no es de Audius y no hay track ID disponible');
+            }
+          }
+          
           debugPrint('✅ [MUSIC_SELECTION] URL válida de Audius: ${uri.scheme}://${uri.host}');
         } catch (e) {
-          debugPrint('❌ [MUSIC_SELECTION] URL inválida: $e');
+          debugPrint('❌ [MUSIC_SELECTION] Error con URL: $e');
           _isLoading.value = false;
           return;
         }
         
+        // Configurar volumen y modo de audio antes de cargar
+        await _audioPlayer.setVolume(1.0);
+        await _audioPlayer.setSpeed(1.0);
+        
         try {
-          debugPrint('📥 [MUSIC_SELECTION] Configurando audio source desde Audius: $audioUrl');
+          debugPrint('📥 [MUSIC_SELECTION] Configurando audio source desde Audius: ${audioUrl.substring(0, audioUrl.length > 80 ? 80 : audioUrl.length)}...');
           await _audioPlayer.setUrl(audioUrl);
           debugPrint('✅ [MUSIC_SELECTION] Audio de Audius cargado exitosamente');
           
@@ -129,7 +155,50 @@ class _MusicSelectionScreenState extends State<MusicSelectionScreen> {
           return;
         }
       } else {
-        // Si no hay URL de Audius, mostrar mensaje
+        // Si no hay previewUrl, intentar obtener stream URL de Audius usando el track ID
+        if (widget.track.id.isNotEmpty) {
+          debugPrint('🔍 [MUSIC_SELECTION] No hay previewUrl, intentando obtener stream URL de Audius con track ID: ${widget.track.id}');
+          try {
+            final streamUrl = await MusicApi.getAudiusStreamUrl(widget.track.id);
+            if (streamUrl != null && streamUrl.isNotEmpty) {
+              debugPrint('✅ [MUSIC_SELECTION] Stream URL obtenido de Audius: ${streamUrl.substring(0, streamUrl.length > 50 ? 50 : streamUrl.length)}...');
+              
+              // Usar el stream URL obtenido
+              await _audioPlayer.setVolume(1.0);
+              await _audioPlayer.setSpeed(1.0);
+              
+              await _audioPlayer.setUrl(streamUrl);
+              debugPrint('✅ [MUSIC_SELECTION] Audio de Audius cargado exitosamente');
+              
+              // Esperar y reproducir
+              await Future.delayed(const Duration(milliseconds: 500));
+              try {
+                await _audioPlayer.seek(Duration.zero);
+                await Future.delayed(const Duration(milliseconds: 200));
+                await _audioPlayer.play();
+                _isPlaying.value = true;
+                _hasAutoPlayed = true;
+                _currentPosition.value = 0.0;
+                debugPrint('✅ [MUSIC_SELECTION] Música de Audius iniciada automáticamente');
+                
+                // Actualizar el track para que tenga el previewUrl (necesitamos hacerlo de otra forma)
+                // ya que widget.track es final, pero podemos guardar el streamUrl cuando se seleccione
+                _isLoading.value = false;
+                // Guardar el streamUrl temporalmente para usarlo al seleccionar
+                _audiusStreamUrl = streamUrl;
+                return;
+              } catch (e) {
+                debugPrint('⚠️ [MUSIC_SELECTION] Error al iniciar automáticamente: $e');
+              }
+            } else {
+              debugPrint('⚠️ [MUSIC_SELECTION] No se pudo obtener stream URL de Audius');
+            }
+          } catch (e) {
+            debugPrint('❌ [MUSIC_SELECTION] Error obteniendo stream URL de Audius: $e');
+          }
+        }
+        
+        // Si no se pudo obtener el stream URL, mostrar mensaje
         debugPrint('⚠️ [MUSIC_SELECTION] No hay URL de música disponible');
         
         // Establecer duración por defecto
@@ -1026,12 +1095,15 @@ class _MusicSelectionScreenState extends State<MusicSelectionScreen> {
     // Asegurar que la duración no exceda 30 segundos
     final finalDuration = _selectedDuration.value.clamp(5.0, 30.0);
     
+    // Usar el stream URL de Audius obtenido si está disponible, sino usar el previewUrl del track
+    final finalPreviewUrl = _audiusStreamUrl ?? widget.track.previewUrl ?? '';
+    
     final storyMusic = StoryMusic(
       trackId: widget.track.id,
       trackName: widget.track.name,
       artistName: widget.track.artist,
       albumName: widget.track.album,
-      previewUrl: widget.track.previewUrl ?? '',
+      previewUrl: finalPreviewUrl, // Usar el stream URL de Audius si se obtuvo
       thumbnailUrl: widget.track.thumbnailUrl,
       youtubeVideoId: youtubeVideoId, // Guardar el video ID de YouTube
       startTime: _startTime.value > 0 ? _startTime.value : null,

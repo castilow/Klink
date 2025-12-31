@@ -401,7 +401,7 @@ class _WriteStoryScreenState extends State<WriteStoryScreen>
                     activeColor: Colors.amber,
                   ),
                   _buildTopBarIcon(
-                    icon: selectedMusic != null ? IconlyBold.volumeUp : IconlyLight.volumeOff,
+                    icon: selectedMusic != null ? Icons.music_note_rounded : Icons.music_note_outlined,
                     onPressed: () async {
                       final music = await Get.to<StoryMusic>(
                         () => const MusicSearchScreen(allowCurrentlyPlaying: true),

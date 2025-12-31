@@ -591,6 +591,8 @@ exports.translateMessageOnDemand = functions.https.onCall({
 exports.chatWithAssistant = functions.https.onCall({
   enforceAppCheck: false,
   secrets: [openaiApiKey],
+  timeoutSeconds: 60,
+  memory: '256MiB',
 }, async (data, context) => {
   try {
     // Log para debugging
@@ -729,7 +731,7 @@ exports.chatWithAssistant = functions.https.onCall({
           'Authorization': `Bearer ${cleanApiKey}`,
           'Content-Length': Buffer.byteLength(postData),
         },
-        timeout: 25000, // 25 segundos
+        timeout: 55000, // 55 segundos (dejando margen para el timeout de 60s en Flutter)
       };
 
       const req = https.request(options, (res) => {
@@ -777,7 +779,7 @@ exports.chatWithAssistant = functions.https.onCall({
       });
 
       req.on('timeout', () => {
-        console.error("[chatWithAssistant] Request timeout after 25 seconds");
+        console.error("[chatWithAssistant] Request timeout after 55 seconds");
         req.destroy();
         reject(new Error('Request timeout'));
       });

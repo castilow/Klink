@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:chat_messenger/api/story_api.dart';
+import 'package:chat_messenger/api/music_api.dart';
 import 'package:chat_messenger/controllers/auth_controller.dart';
 import 'package:chat_messenger/models/story/story.dart';
 import 'package:chat_messenger/models/story/submodels/seen_by.dart';
@@ -163,7 +164,7 @@ class StoryViewController extends GetxController {
         StoryItem.pageImage(
             url: storyImage.imageUrl, 
             controller: storyController,
-            imageFit: BoxFit.cover,
+            imageFit: BoxFit.contain, // Usar contain para mantener proporción original
             duration: hasMusic ? const Duration(seconds: 30) : null,
         ),
       );
@@ -300,14 +301,6 @@ class StoryViewController extends GetxController {
         debugPrint('🎵 [STORY_VIEW] URL de Audius detectada (música completa)');
         audioUrl = music.previewUrl;
       }
-      // SEGUNDO: Verificar si previewUrl es de SoundCloud (música completa, puede ser HLS)
-      else if (music.previewUrl.isNotEmpty && 
-               (music.previewUrl.contains('soundcloud.com') || 
-                music.previewUrl.contains('api.soundcloud.com') ||
-                music.previewUrl.contains('.m3u8'))) {
-        debugPrint('🎵 [STORY_VIEW] URL de SoundCloud detectada (música completa, formato HLS o stream)');
-        audioUrl = music.previewUrl;
-      }
       // Si tiene YouTube Video ID, usar ese
       else if (music.youtubeVideoId != null && music.youtubeVideoId!.isNotEmpty) {
         debugPrint('🎵 [STORY_VIEW] Usando YouTube Video ID: ${music.youtubeVideoId}');
@@ -322,19 +315,32 @@ class StoryViewController extends GetxController {
           audioUrl = await _getYouTubeAudioUrl(videoId);
         }
       }
-      // Si tiene preview URL de Spotify u otra plataforma, usar esa
+      // Si tiene preview URL de Spotify o SoundCloud, usar esa
       else if (music.previewUrl.isNotEmpty && 
                !music.previewUrl.contains('youtube.com') && 
                !music.previewUrl.contains('youtu.be') &&
                !music.previewUrl.contains('audius.co') &&
-               !music.previewUrl.contains('audius') &&
-               !music.previewUrl.contains('soundcloud.com') &&
-               !music.previewUrl.contains('api.soundcloud.com')) {
-        debugPrint('🎵 [STORY_VIEW] Usando preview URL (Spotify u otra plataforma)');
+               !music.previewUrl.contains('audius')) {
+        debugPrint('🎵 [STORY_VIEW] Usando preview URL (Spotify/SoundCloud)');
         audioUrl = music.previewUrl;
       }
-      // Si no hay URL, intentar buscar en YouTube usando el nombre de la canción
-      else {
+      // Si no hay URL pero tiene trackId, intentar obtener stream URL de Audius
+      else if (music.trackId.isNotEmpty) {
+        debugPrint('🔍 [STORY_VIEW] No hay previewUrl, intentando obtener stream URL de Audius con track ID: ${music.trackId}');
+        try {
+          audioUrl = await MusicApi.getAudiusStreamUrl(music.trackId);
+          if (audioUrl != null && audioUrl.isNotEmpty) {
+            debugPrint('✅ [STORY_VIEW] Stream URL obtenido de Audius: ${audioUrl.substring(0, audioUrl.length > 50 ? 50 : audioUrl.length)}...');
+          } else {
+            debugPrint('⚠️ [STORY_VIEW] No se pudo obtener stream URL de Audius');
+          }
+        } catch (e) {
+          debugPrint('❌ [STORY_VIEW] Error obteniendo stream URL de Audius: $e');
+        }
+      }
+      
+      // Si aún no hay URL, intentar buscar en YouTube usando el nombre de la canción
+      if (audioUrl == null || audioUrl.isEmpty) {
         debugPrint('⚠️ [STORY_VIEW] No hay URL disponible, buscando en YouTube...');
         try {
           final yt = YoutubeExplode();

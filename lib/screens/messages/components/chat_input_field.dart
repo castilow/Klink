@@ -13,7 +13,6 @@ import 'package:chat_messenger/models/user.dart';
 import 'package:chat_messenger/models/group.dart';
 import 'package:chat_messenger/screens/messages/controllers/message_controller.dart';
 import 'package:chat_messenger/screens/messages/components/attachment/attachment_menu.dart';
-import 'package:chat_messenger/screens/messages/components/sticker_picker_screen.dart';
 import 'dart:math' as math;
 import 'package:chat_messenger/models/location.dart';
 
@@ -99,8 +98,6 @@ class ChatInputFieldState extends State<ChatInputField>
   final TextEditingController _textController = TextEditingController();
   bool _showScrollButton = false;
   bool _isVisible = false;
-  bool _showStickerKeyboard = false; // Controla si se muestra el panel de stickers
-  double _lastScrollPosition = 0.0; // Para detectar dirección del scroll
 
   // Grabación
   bool _isRecording = false;
@@ -175,40 +172,10 @@ class ChatInputFieldState extends State<ChatInputField>
         if (mounted) setState(() => _showScrollButton = true);
       });
     });
-
-    // Listener para ocultar el panel de stickers cuando se hace scroll hacia abajo
-    controller.scrollController.addListener(_onScroll);
-    _lastScrollPosition = controller.scrollController.hasClients 
-        ? controller.scrollController.position.pixels 
-        : 0.0;
-  }
-
-  void _onScroll() {
-    if (!controller.scrollController.hasClients) return;
-    
-    final currentPosition = controller.scrollController.position.pixels;
-    
-    // En ListView con reverse: true, cuando el usuario desliza hacia abajo (para ver mensajes más antiguos),
-    // los pixels disminuyen. Queremos ocultar el panel cuando detectemos este movimiento.
-    // También ocultamos si hace scroll hacia arriba (pixels aumentan) para dar más espacio
-    final scrollDelta = currentPosition - _lastScrollPosition;
-    
-    // Si hay movimiento de scroll significativo (más de 10 píxeles) y el panel está visible, ocultarlo
-    if (scrollDelta.abs() > 10.0 && _showStickerKeyboard) {
-      if (mounted) {
-        setState(() {
-          _showStickerKeyboard = false;
-        });
-      }
-    }
-    
-    _lastScrollPosition = currentPosition;
   }
 
   @override
   void dispose() {
-    // Remover listener del scroll
-    controller.scrollController.removeListener(_onScroll);
     _pulseController.dispose();
     _micTapController.dispose();
     _recordingTimer?.cancel();
@@ -362,66 +329,26 @@ class ChatInputFieldState extends State<ChatInputField>
     );
   }
 
-  void _showStickerPicker() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) {
-        return const StickerPickerScreen();
-      },
-    );
-  }
-
-  void _toggleStickerKeyboard() {
-    if (_showStickerKeyboard) {
-      // Si el panel de stickers está visible, ocultarlo y mostrar el teclado
-      setState(() {
-        _showStickerKeyboard = false;
-      });
-      // Enfocar el campo de texto para mostrar el teclado
-      Future.delayed(const Duration(milliseconds: 100), () {
-        controller.chatFocusNode.requestFocus();
-      });
-    } else {
-      // Si el teclado está visible, ocultarlo y mostrar el panel de stickers
-      setState(() {
-        _showStickerKeyboard = true;
-      });
-      // Quitar el foco del campo de texto para ocultar el teclado
-      controller.chatFocusNode.unfocus();
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     // Elevamos todo un poquito más con una pequeña traslación hacia arriba
     const lift = 0.0;
-    final bool kbOpen = MediaQuery.of(context).viewInsets.bottom > 0;
-    final double keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
-    
+final bool kbOpen = MediaQuery.of(context).viewInsets.bottom > 0;
     return AnimatedOpacity(
       opacity: _isVisible ? 1 : 0,
       duration: const Duration(milliseconds: 300),
       child: AnimatedScale(
         scale: _isVisible ? 1 : 0.95,
         duration: const Duration(milliseconds: 300),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Barra de herramientas sobre el teclado (como Instagram/Twitter)
-            if (kbOpen && !_showStickerKeyboard && !_isRecording)
-              _buildKeyboardToolbar(),
-            
-            Transform.translate(
-              offset: const Offset(0, lift),
+        child: Transform.translate(
+          offset: const Offset(0, lift),
               child: Container(
                 color: Colors.transparent,
                 padding: EdgeInsets.only(
                   left: 16,
                   right: 16,
                   top: 6.0,
-                  bottom: (_showStickerKeyboard && !kbOpen) ? 8.0 : (kbOpen ? 10.0 : 40.0),
+                  bottom: kbOpen ? 10.0 : 40.0,
                 ),
                 child: Stack(
                   alignment: Alignment.bottomCenter,
@@ -481,10 +408,6 @@ class ChatInputFieldState extends State<ChatInputField>
                                   )
                                 else
                                   _buildNormalInput(),
-
-                                // Panel de stickers que reemplaza el teclado
-                                if (_showStickerKeyboard && !_isRecording)
-                                  _buildStickerKeyboard(),
                               ],
                             );
                           }),
@@ -496,119 +419,8 @@ class ChatInputFieldState extends State<ChatInputField>
               
   // Eliminado el overlay global de PointerUp (se maneja en gestos locales)
 
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Barra de herramientas sobre el teclado (como Instagram/Twitter)
-  Widget _buildKeyboardToolbar() {
-    final bool isDark = Theme.of(context).brightness == Brightness.dark;
-    final Color bgColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
-    final Color iconColor = isDark ? (Colors.grey[300] ?? Colors.grey) : (Colors.grey[700] ?? Colors.grey);
-    
-    return Container(
-      height: 44,
-      decoration: BoxDecoration(
-        color: bgColor,
-        border: Border(
-          top: BorderSide(
-            color: isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.1),
-            width: 0.5,
           ),
         ),
-      ),
-      child: Row(
-        children: [
-          const SizedBox(width: 12),
-          // Botón de stickers
-          GestureDetector(
-            onTap: _toggleStickerKeyboard,
-            child: Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: _showStickerKeyboard 
-                    ? primaryColor.withOpacity(0.2)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                Icons.sticky_note_2_outlined,
-                color: _showStickerKeyboard ? primaryColor : iconColor,
-                size: 22,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          // Botón de emojis
-          GestureDetector(
-            onTap: () {
-              // Cambiar a emojis del sistema si está disponible
-              // Por ahora, solo un placeholder
-            },
-            child: Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: Colors.transparent,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                Icons.emoji_emotions_outlined,
-                color: iconColor,
-                size: 22,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          // Botón de GIF (opcional)
-          GestureDetector(
-            onTap: () {
-              // Abrir selector de GIF si está disponible
-            },
-            child: Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: Colors.transparent,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                Icons.gif_box_outlined,
-                color: iconColor,
-                size: 22,
-              ),
-            ),
-          ),
-          const Spacer(),
-          // Botón para cerrar teclado
-          GestureDetector(
-            onTap: () {
-              controller.chatFocusNode.unfocus();
-              if (_showStickerKeyboard) {
-                setState(() {
-                  _showStickerKeyboard = false;
-                });
-              }
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Text(
-                'Listo',
-                style: TextStyle(
-                  color: primaryColor,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-        ],
       ),
     );
   }
@@ -787,22 +599,17 @@ class ChatInputFieldState extends State<ChatInputField>
                     isDense: true,
                     contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
                     suffixIcon: GestureDetector(
-                      onTap: _toggleStickerKeyboard,
+                      onTap: () {
+                        // TODO: Open sticker picker
+                        debugPrint("Sticker button tapped");
+                      },
                       child: Icon(
-                        _showStickerKeyboard ? Icons.keyboard : Icons.sticky_note_2_outlined,
-                        color: _showStickerKeyboard ? primaryColor : iconsColor,
+                        Icons.sticky_note_2_outlined, // Sticker icon
+                        color: iconsColor,
                         size: 24,
                       ),
                     ),
                   ),
-                  onTap: () {
-                    // Cuando se toca el campo de texto, ocultar el panel de stickers
-                    if (_showStickerKeyboard) {
-                      setState(() {
-                        _showStickerKeyboard = false;
-                      });
-                    }
-                  },
                 ),
               ),
             ),
@@ -1088,34 +895,5 @@ Widget _buildRecordingMode() {
         ], // <- CIERRA children del Stack PRINCIPAL
       ),   // <- cierra Stack
    );
-  }
-
-  Widget _buildStickerKeyboard() {
-    final bool isDark = Theme.of(context).brightness == Brightness.dark;
-    final bool kbOpen = MediaQuery.of(context).viewInsets.bottom > 0;
-    
-    return Container(
-      height: kbOpen 
-          ? MediaQuery.of(context).size.height * 0.3 
-          : MediaQuery.of(context).size.height * 0.35,
-      margin: const EdgeInsets.only(top: 8),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: ClipRRect(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        child: StickerPickerScreen(
-          onStickerSent: () {
-            // Cerrar el panel de stickers cuando se envía un sticker
-            if (mounted) {
-              setState(() {
-                _showStickerKeyboard = false;
-              });
-            }
-          },
-        ),
-      ),
-    );
   }
 }
