@@ -59,7 +59,29 @@ abstract class AppHelper {
 
       debugPrint('📂 Ruta de destino: $filePath');
 
+      // Verificar que el archivo existe antes de subir
+      if (!await file.exists()) {
+        print('❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌ ERROR: ARCHIVO NO EXISTE ❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌');
+        print('❌ Ruta del archivo: ${file.path}');
+        throw Exception('El archivo no existe en la ruta: ${file.path}');
+      }
+      
+      final fileSize = await file.length();
+      print('📊 [STORAGE] Tamaño del archivo: $fileSize bytes');
+      if (fileSize == 0) {
+        print('❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌ ERROR: ARCHIVO VACÍO ❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌');
+        throw Exception('El archivo está vacío');
+      }
+      
       // Upload file
+      print('🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀 INICIANDO SUBIDA A FIREBASE STORAGE 🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀');
+      debugPrint('🚀🚀🚀 [STORAGE] INICIANDO SUBIDA A FIREBASE STORAGE 🚀🚀🚀');
+      print('🚀 [STORAGE] Ruta del archivo local: ${file.path}');
+      print('🚀 [STORAGE] Ruta de destino en Storage: $filePath');
+      print('🚀 [STORAGE] Tamaño del archivo: $fileSize bytes');
+      debugPrint('🚀 [STORAGE] Ruta del archivo local: ${file.path}');
+      debugPrint('🚀 [STORAGE] Ruta de destino en Storage: $filePath');
+      
       final UploadTask uploadTask = FirebaseStorage.instance
           .ref()
           .child(filePath)
@@ -68,15 +90,50 @@ abstract class AppHelper {
       // Monitor progress
       uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
         double progress = snapshot.bytesTransferred / snapshot.totalBytes;
+        print('📤 [STORAGE] Progreso de subida: ${(progress * 100).toStringAsFixed(1)}%');
         debugPrint(
-          '📤 Progreso de subida: ${(progress * 100).toStringAsFixed(1)}%',
+          '📤 [STORAGE] Progreso de subida: ${(progress * 100).toStringAsFixed(1)}%',
         );
       });
 
+      print('⏳ [STORAGE] Esperando que termine la subida...');
+      debugPrint('⏳ [STORAGE] Esperando que termine la subida...');
       final TaskSnapshot snapshot = await uploadTask;
+      print('✅ [STORAGE] Subida completada, obteniendo URL de descarga...');
+      debugPrint('✅ [STORAGE] Subida completada, obteniendo URL de descarga...');
+      
+      print('🔗 [STORAGE] Obteniendo URL de descarga desde: ${snapshot.ref.fullPath}');
       final String url = await snapshot.ref.getDownloadURL();
+      print('✅ [STORAGE] URL de descarga obtenida exitosamente');
+      debugPrint('✅ [STORAGE] URL de descarga obtenida exitosamente');
 
-      debugPrint('✅ Archivo subido exitosamente: $url');
+      print('✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅ ARCHIVO SUBIDO EXITOSAMENTE ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅');
+      debugPrint('✅✅✅ [STORAGE] Archivo subido exitosamente a Firebase Storage ✅✅✅');
+      print('✅ [STORAGE] URL completa: ${url.length > 150 ? url.substring(0, 150) + "..." : url}');
+      print('✅ [STORAGE] URL length: ${url.length}');
+      print('✅ [STORAGE] URL startsWith http: ${url.startsWith("http")}');
+      print('✅ [STORAGE] URL startsWith https: ${url.startsWith("https")}');
+      print('✅ [STORAGE] Ruta en Storage: $filePath');
+      debugPrint('✅ [STORAGE] URL completa: $url');
+      debugPrint('✅ [STORAGE] URL length: ${url.length}');
+      debugPrint('✅ [STORAGE] URL startsWith http: ${url.startsWith("http")}');
+      debugPrint('✅ [STORAGE] URL startsWith https: ${url.startsWith("https")}');
+      debugPrint('✅ [STORAGE] Ruta en Storage: $filePath');
+      debugPrint('✅✅✅ [STORAGE] URL válida y lista para usar ✅✅✅');
+      
+      // Verificar que la URL es accesible
+      try {
+        final response = await http.head(Uri.parse(url));
+        print('✅ [STORAGE] Verificación de URL: Status ${response.statusCode}');
+        if (response.statusCode == 200) {
+          print('✅✅✅ [STORAGE] URL VERIFICADA Y ACCESIBLE ✅✅✅');
+        } else {
+          print('⚠️ [STORAGE] URL devuelve status ${response.statusCode}');
+        }
+      } catch (e) {
+        print('⚠️ [STORAGE] No se pudo verificar la URL: $e');
+      }
+      
       return url;
     } catch (e) {
       debugPrint('❌ Error subiendo archivo: $e');

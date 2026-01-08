@@ -44,15 +44,59 @@ abstract class MessageApi {
       // Get current user instance
       final User currentUser = AuthController.instance.currentUser;
 
+      // Debug: Log para mensajes de imagen
+      if (message.type == MessageType.image) {
+        debugPrint('💾 [MESSAGE_API] Guardando mensaje de imagen en Firestore');
+        debugPrint('💾 [MESSAGE_API] - msgId: ${message.msgId}');
+        debugPrint('💾 [MESSAGE_API] - fileUrl: ${message.fileUrl.isEmpty ? "VACÍO" : (message.fileUrl.length > 80 ? message.fileUrl.substring(0, 80) + "..." : message.fileUrl)}');
+        debugPrint('💾 [MESSAGE_API] - fileUrl length: ${message.fileUrl.length}');
+        debugPrint('💾 [MESSAGE_API] - fileUrl startsWith http: ${message.fileUrl.startsWith("http")}');
+        
+        final messageMap = message.toMap(isGroup: false);
+        debugPrint('💾 [MESSAGE_API] - messageMap[fileUrl]: ${messageMap['fileUrl'] ?? "NO EXISTE"}');
+        debugPrint('💾 [MESSAGE_API] - messageMap[fileUrl] length: ${(messageMap['fileUrl'] as String?)?.length ?? 0}');
+      }
+
       // Save message for current user
-      _getCollectionRef(userId1: currentUser.userId, userId2: receiver.userId)
+      final messageMap = message.toMap(isGroup: false);
+      if (message.type == MessageType.image) {
+        debugPrint('💾 [MESSAGE_API] Guardando en Firestore para usuario actual');
+        debugPrint('💾 [MESSAGE_API] - Collection: Users/${currentUser.userId}/Chats/${receiver.userId}/Messages');
+        debugPrint('💾 [MESSAGE_API] - Document ID: ${message.msgId}');
+        debugPrint('💾 [MESSAGE_API] - fileUrl en messageMap: ${messageMap['fileUrl'] ?? "NO EXISTE"}');
+        debugPrint('💾 [MESSAGE_API] - fileUrl type: ${messageMap['fileUrl'].runtimeType}');
+        debugPrint('💾 [MESSAGE_API] - fileUrl length: ${(messageMap['fileUrl'] as String?)?.length ?? 0}');
+        
+        // Validar que fileUrl no esté vacío antes de guardar
+        if (messageMap['fileUrl'] == null || (messageMap['fileUrl'] as String).isEmpty) {
+          debugPrint('❌❌❌ [MESSAGE_API] ERROR: Intentando guardar mensaje de imagen sin fileUrl ❌❌❌');
+          throw Exception('No se puede guardar mensaje de imagen sin fileUrl');
+        }
+      }
+      await _getCollectionRef(userId1: currentUser.userId, userId2: receiver.userId)
           .doc(message.msgId)
-          .set(message.toMap(isGroup: false));
+          .set(messageMap);
+      
+      if (message.type == MessageType.image) {
+        debugPrint('✅ [MESSAGE_API] Mensaje de imagen guardado exitosamente en Firestore para usuario actual');
+      }
 
       // Save message for another user
-      _getCollectionRef(userId1: receiver.userId, userId2: currentUser.userId)
+      if (message.type == MessageType.image) {
+        debugPrint('💾 [MESSAGE_API] Guardando en Firestore para usuario receptor');
+        debugPrint('💾 [MESSAGE_API] - Collection: Users/${receiver.userId}/Chats/${currentUser.userId}/Messages');
+        debugPrint('💾 [MESSAGE_API] - Document ID: ${message.msgId}');
+        debugPrint('💾 [MESSAGE_API] - fileUrl en messageMap: ${messageMap['fileUrl'] ?? "NO EXISTE"}');
+        debugPrint('💾 [MESSAGE_API] - fileUrl type: ${messageMap['fileUrl'].runtimeType}');
+        debugPrint('💾 [MESSAGE_API] - fileUrl length: ${(messageMap['fileUrl'] as String?)?.length ?? 0}');
+      }
+      await _getCollectionRef(userId1: receiver.userId, userId2: currentUser.userId)
           .doc(message.msgId)
-          .set(message.toMap(isGroup: false));
+          .set(messageMap);
+      
+      if (message.type == MessageType.image) {
+        debugPrint('✅ [MESSAGE_API] Mensaje de imagen guardado exitosamente en Firestore para usuario receptor');
+      }
 
       // Save the last chat
       ChatApi.saveChat(
@@ -913,6 +957,51 @@ abstract class MessageApi {
       debugPrint('updateMessageTranslation() -> success');
     } catch (e) {
       debugPrint('updateMessageTranslation() -> error: $e');
+    }
+  }
+
+  // <-- Update fileUrl of an existing message after file upload -->
+  static Future<void> updateMessageFileUrl({
+    required bool isGroup,
+    required Message message,
+    required String fileUrl,
+    String? videoThumbnailUrl,
+    String? receiverId,
+    String? groupId,
+  }) async {
+    try {
+      final User currentUser = AuthController.instance.currentUser;
+
+      final Map<String, dynamic> updates = {
+        'fileUrl': fileUrl,
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      // Si hay video thumbnail, agregarlo
+      if (videoThumbnailUrl != null && videoThumbnailUrl.isNotEmpty) {
+        updates['videoThumbnail'] = videoThumbnailUrl;
+      }
+
+      if (isGroup) {
+        await GroupApi.groupsRef
+            .doc(groupId)
+            .collection('Messages')
+            .doc(message.msgId)
+            .update(updates);
+      } else {
+        // Update for both users in 1-to-1 chat
+        await _getCollectionRef(userId1: currentUser.userId, userId2: receiverId!)
+            .doc(message.msgId)
+            .update(updates);
+        await _getCollectionRef(userId1: receiverId, userId2: currentUser.userId)
+            .doc(message.msgId)
+            .update(updates);
+      }
+
+      debugPrint('updateMessageFileUrl() -> success, fileUrl: ${fileUrl.substring(0, fileUrl.length > 50 ? 50 : fileUrl.length)}...');
+    } catch (e) {
+      debugPrint('updateMessageFileUrl() -> error: $e');
+      rethrow;
     }
   }
 }

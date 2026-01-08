@@ -45,6 +45,29 @@ class BubbleMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Log para TODOS los mensajes
+    debugPrint('💬💬💬💬💬💬💬💬💬💬 BubbleMessage.build EJECUTADO 💬💬💬💬💬💬💬💬💬💬');
+    debugPrint('   - msgId: ${message.msgId}');
+    debugPrint('   - type: ${message.type}');
+    
+    // DEBUG: Log para verificar que el mensaje tiene el tipo correcto - SIEMPRE
+    if (message.type == MessageType.image) {
+      print('🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️ BubbleMessage.build: MENSAJE DE IMAGEN 🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️');
+      print('   - msgId: ${message.msgId}');
+      print('   - type: ${message.type}');
+      print('   - fileUrl: ${message.fileUrl.isEmpty ? "VACÍO" : message.fileUrl.substring(0, message.fileUrl.length > 50 ? 50 : message.fileUrl.length)}...');
+      print('   - fileUrl length: ${message.fileUrl.length}');
+      print('   - fileUrl startsWith http: ${message.fileUrl.startsWith("http")}');
+      print('   - ⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️ BUBBLEMESSAGE.BUILD EJECUTADO PARA IMAGEN ⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️');
+      debugPrint('🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️ BubbleMessage.build: MENSAJE DE IMAGEN 🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️');
+      debugPrint('   - msgId: ${message.msgId}');
+      debugPrint('   - type: ${message.type}');
+      debugPrint('   - fileUrl: ${message.fileUrl.isEmpty ? "VACÍO" : message.fileUrl.substring(0, message.fileUrl.length > 50 ? 50 : message.fileUrl.length)}...');
+      debugPrint('   - fileUrl length: ${message.fileUrl.length}');
+      debugPrint('   - fileUrl startsWith http: ${message.fileUrl.startsWith("http")}');
+      debugPrint('   - ⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️ BUBBLEMESSAGE.BUILD EJECUTADO PARA IMAGEN ⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️');
+    }
+    
     final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final bool isGroup = group != null;
     final bool isSender = message.isSender;
@@ -295,6 +318,9 @@ class BubbleMessage extends StatelessWidget {
   Widget _showMessageContent(String profileUrl, Color backgroundColor) {
     final bool isGroup = group != null;
     
+    // DEBUG: Log para verificar el tipo de mensaje
+    debugPrint('🔍 BubbleMessage._showMessageContent: msgId=${message.msgId}, type=${message.type}');
+    
     // Check type
     switch (message.type) {
       case MessageType.text:
@@ -303,7 +329,52 @@ class BubbleMessage extends StatelessWidget {
 
       case MessageType.image:
         // Show image msg
-        return ImageMessage(message, isGroup: isGroup);
+        // Debug: Verificar que el mensaje es de tipo imagen - SIEMPRE
+        print('🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️ BubbleMessage._showMessageContent: CREANDO ImageMessage 🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️');
+        print('   - msgId: ${message.msgId}');
+        print('   - fileUrl: ${message.fileUrl.isEmpty ? "VACÍO" : message.fileUrl.substring(0, message.fileUrl.length > 50 ? 50 : message.fileUrl.length)}...');
+        print('   - fileUrl length: ${message.fileUrl.length}');
+        print('   - fileUrl startsWith http: ${message.fileUrl.startsWith("http")}');
+        print('   - fileUrl startsWith /: ${message.fileUrl.startsWith("/")}');
+        debugPrint('🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️ BubbleMessage._showMessageContent: CREANDO ImageMessage 🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️');
+        debugPrint('   - msgId: ${message.msgId}');
+        debugPrint('   - fileUrl: ${message.fileUrl.isEmpty ? "VACÍO" : message.fileUrl.substring(0, message.fileUrl.length > 50 ? 50 : message.fileUrl.length)}...');
+        debugPrint('   - fileUrl length: ${message.fileUrl.length}');
+        debugPrint('   - fileUrl startsWith http: ${message.fileUrl.startsWith("http")}');
+        debugPrint('   - fileUrl startsWith /: ${message.fileUrl.startsWith("/")}');
+        
+        // Obtener el mensaje actualizado del controlador para asegurar que tenemos el fileUrl más reciente
+        final MessageController msgController = Get.find();
+        Message currentMessage = message;
+        try {
+          final foundMessage = msgController.messages.firstWhere(
+            (m) => m.msgId == message.msgId,
+          );
+          currentMessage = foundMessage;
+          print('   - ✅ Mensaje actualizado encontrado en controlador');
+          print('   - fileUrl actualizado: ${currentMessage.fileUrl.isEmpty ? "VACÍO" : currentMessage.fileUrl.substring(0, currentMessage.fileUrl.length > 50 ? 50 : currentMessage.fileUrl.length)}...');
+          debugPrint('   - ✅ Mensaje actualizado encontrado en controlador');
+          debugPrint('   - fileUrl actualizado: ${currentMessage.fileUrl.isEmpty ? "VACÍO" : currentMessage.fileUrl.substring(0, currentMessage.fileUrl.length > 50 ? 50 : currentMessage.fileUrl.length)}...');
+        } catch (e) {
+          print('   - ⚠️ Mensaje no encontrado en controlador, usando mensaje original');
+          debugPrint('   - ⚠️ Mensaje no encontrado en controlador, usando mensaje original');
+        }
+        
+        // Usar key basado en fileUrl para forzar reconstrucción cuando cambie
+        final imageKey = currentMessage.fileUrl.isEmpty 
+            ? '${currentMessage.msgId}_empty'
+            : '${currentMessage.msgId}_${currentMessage.fileUrl.length > 100 ? currentMessage.fileUrl.substring(0, 100) : currentMessage.fileUrl}';
+        print('   - Creando ImageMessage con key: $imageKey');
+        print('   - fileUrl final: ${currentMessage.fileUrl.isEmpty ? "VACÍO" : currentMessage.fileUrl.substring(0, currentMessage.fileUrl.length > 100 ? 100 : currentMessage.fileUrl.length)}...');
+        debugPrint('   - Creando ImageMessage con key: $imageKey');
+        final imageWidget = ImageMessage(
+          currentMessage, 
+          isGroup: isGroup,
+          key: ValueKey(imageKey),
+        );
+        print('   - ✅✅✅ ImageMessage creado exitosamente ✅✅✅');
+        debugPrint('   - ✅✅✅ ImageMessage creado exitosamente ✅✅✅');
+        return imageWidget;
 
       case MessageType.gif:
         // Show GIF msg

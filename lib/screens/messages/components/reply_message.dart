@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:chat_messenger/config/theme_config.dart';
@@ -113,24 +114,7 @@ class ReplyMessage extends StatelessWidget {
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(8),
-                      child: CachedNetworkImage(
-                        imageUrl: message.fileUrl,
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) => Container(
-                          color: Colors.grey[300],
-                          child: const Icon(
-                            Icons.image,
-                            color: Colors.grey,
-                          ),
-                        ),
-                        errorWidget: (context, url, error) => Container(
-                          color: Colors.grey[300],
-                          child: const Icon(
-                            Icons.broken_image,
-                            color: Colors.grey,
-                          ),
-                        ),
-                      ),
+                      child: _buildImagePreview(),
                     ),
                   ),
                 ],
@@ -194,6 +178,61 @@ class ReplyMessage extends StatelessWidget {
           ),
       ],
     );
+  }
+
+  Widget _buildImagePreview() {
+    // Si es una imagen local (path empieza con /)
+    if (message.fileUrl.startsWith('/')) {
+      final file = File(message.fileUrl);
+      return FutureBuilder<bool>(
+        future: file.exists(),
+        builder: (context, snapshot) {
+          if (snapshot.hasData && snapshot.data == true) {
+            return Image.file(
+              file,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  color: Colors.grey[300],
+                  child: const Icon(
+                    Icons.broken_image,
+                    color: Colors.grey,
+                  ),
+                );
+              },
+            );
+          } else {
+            return Container(
+              color: Colors.grey[300],
+              child: const Icon(
+                Icons.image,
+                color: Colors.grey,
+              ),
+            );
+          }
+        },
+      );
+    } else {
+      // Imagen remota
+      return CachedNetworkImage(
+        imageUrl: message.fileUrl,
+        fit: BoxFit.cover,
+        placeholder: (context, url) => Container(
+          color: Colors.grey[300],
+          child: const Icon(
+            Icons.image,
+            color: Colors.grey,
+          ),
+        ),
+        errorWidget: (context, url, error) => Container(
+          color: Colors.grey[300],
+          child: const Icon(
+            Icons.broken_image,
+            color: Colors.grey,
+          ),
+        ),
+      );
+    }
   }
 }
 

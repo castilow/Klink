@@ -610,20 +610,31 @@ exports.chatWithAssistant = functions.https.onCall({
 
     // Compatibilidad con diferentes formatos de payload
     const actualData = data?.data?.data || data?.data || data || {};
-    const {message, conversationHistory} = actualData;
+    const {message, conversationHistory, image, imageBase64} = actualData;
 
     // Log solo los campos que necesitamos para evitar referencias circulares
     console.log("[chatWithAssistant] Received message:", message?.substring(0, 50));
     console.log("[chatWithAssistant] Conversation history length:", conversationHistory?.length || 0);
+    console.log("[chatWithAssistant] Has image:", !!(image || imageBase64));
+    console.log("[chatWithAssistant] Image size:", image ? image.length : (imageBase64 ? imageBase64.length : 0));
     if (conversationHistory && Array.isArray(conversationHistory)) {
       console.log("[chatWithAssistant] Conversation history preview:", JSON.stringify(conversationHistory.slice(0, 2)));
     }
 
     // Validar parámetros
-    if (!message || typeof message !== "string") {
+    const hasImage = !!(image || imageBase64);
+    if (!message && !hasImage) {
       throw new functions.https.HttpsError(
           "invalid-argument",
-          "El mensaje es requerido y debe ser texto",
+          "El mensaje o una imagen es requerido",
+      );
+    }
+    
+    // Si hay mensaje, debe ser string
+    if (message && typeof message !== "string") {
+      throw new functions.https.HttpsError(
+          "invalid-argument",
+          "El mensaje debe ser texto",
       );
     }
 
@@ -691,12 +702,63 @@ exports.chatWithAssistant = functions.https.onCall({
       messages.push(...recentHistory);
     }
 
-    // Agregar el mensaje actual
+    // Agregar el mensaje actual (con imagen si existe)
     console.log("[chatWithAssistant] Adding current message to array...");
-    messages.push({
-      role: "user",
-      content: message,
-    });
+    const imageData = image || imageBase64;
+    
+    if (imageData && imageData.length > 0) {
+      // Si hay imagen, crear un mensaje con contenido multimodal
+      console.log("[chatWithAssistant] Processing message with image...");
+      console.log("[chatWithAssistant] Image base64 length:", imageData.length);
+      console.log("[chatWithAssistant] Image base64 preview:", imageData.substring(0, 100));
+      
+      // Limpiar el base64 si tiene prefijo data:image
+      let cleanImageBase64 = imageData;
+      if (imageData.includes(',')) {
+        cleanImageBase64 = imageData.split(',').pop();
+        console.log("[chatWithAssistant] Cleaned base64 prefix, new length:", cleanImageBase64.length);
+      }
+      
+      // Validar que el base64 sea válido
+      const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
+      if (!base64Regex.test(cleanImageBase64)) {
+        console.error("[chatWithAssistant] Invalid base64 format");
+        throw new functions.https.HttpsError(
+            "invalid-argument",
+            "El formato de la imagen no es válido",
+        );
+      }
+      
+      // Construir el contenido multimodal
+      const multimodalContent = [
+        {
+          type: "text",
+          text: message || "¿Qué ves en esta imagen?",
+        },
+        {
+          type: "image_url",
+          image_url: {
+            url: `data:image/jpeg;base64,${cleanImageBase64}`,
+          },
+        },
+      ];
+      
+      messages.push({
+        role: "user",
+        content: multimodalContent,
+      });
+      
+      console.log("[chatWithAssistant] Added multimodal message with image");
+      console.log("[chatWithAssistant] Multimodal content has text:", !!multimodalContent[0].text);
+      console.log("[chatWithAssistant] Multimodal content has image:", !!multimodalContent[1].image_url);
+    } else {
+      // Mensaje de texto normal
+      messages.push({
+        role: "user",
+        content: message || "",
+      });
+      console.log("[chatWithAssistant] Added text-only message");
+    }
 
     console.log("[chatWithAssistant] Messages prepared, total:", messages.length);
     console.log("[chatWithAssistant] First message role:", messages[0]?.role);
@@ -707,11 +769,17 @@ exports.chatWithAssistant = functions.https.onCall({
     console.log("[chatWithAssistant] Clean API Key present:", !!cleanApiKey);
 
     // Llamar a la API de OpenAI usando https nativo
+    // Usar gpt-4o-mini para texto, gpt-4o para imágenes (tiene visión)
+    const model = hasImage ? "gpt-4o" : "gpt-4o-mini";
+    
+    console.log("[chatWithAssistant] Using model:", model, "Has image:", hasImage);
+    console.log("[chatWithAssistant] Model supports vision:", model === "gpt-4o");
+    
     const requestBody = {
-      model: "gpt-4o-mini", // Modelo más económico de OpenAI
+      model: model,
       messages: messages,
       temperature: 0.7,
-      max_tokens: 500, // Reducido para consumir menos tokens
+      max_tokens: hasImage ? 1000 : 500, // Más tokens para respuestas con imágenes
       presence_penalty: 0.6,
       frequency_penalty: 0.3,
     };

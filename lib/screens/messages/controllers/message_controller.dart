@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
@@ -26,6 +27,7 @@ import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
+import 'package:audio_session/audio_session.dart';
 
 class MessageController extends GetxController {
   final bool isGroup;
@@ -260,6 +262,28 @@ class MessageController extends GetxController {
           return;
         }
         audioSource = AudioSource.file(audioPath);
+      }
+      
+      // Configurar sesión de audio para reproducción
+      try {
+        final session = await AudioSession.instance;
+        await session.configure(const AudioSessionConfiguration(
+          avAudioSessionCategory: AVAudioSessionCategory.playback,
+          avAudioSessionCategoryOptions: AVAudioSessionCategoryOptions.defaultToSpeaker,
+          avAudioSessionMode: AVAudioSessionMode.defaultMode,
+          avAudioSessionRouteSharingPolicy: AVAudioSessionRouteSharingPolicy.defaultPolicy,
+          avAudioSessionSetActiveOptions: AVAudioSessionSetActiveOptions.none,
+          androidAudioAttributes: AndroidAudioAttributes(
+            contentType: AndroidAudioContentType.music,
+            flags: AndroidAudioFlags.none,
+            usage: AndroidAudioUsage.media,
+          ),
+          androidAudioFocusGainType: AndroidAudioFocusGainType.gain,
+        ));
+        debugPrint('✅ Audio session configurada correctamente');
+      } catch (e) {
+        debugPrint('⚠️ Error configurando audio session: $e');
+        // Continuar aunque falle la configuración de sesión
       }
       
       // Configurar audio source
@@ -1032,11 +1056,60 @@ class MessageController extends GetxController {
   void _getMessages() {
     if (isGroup) {
       _stream =
-          MessageApi.getGroupMessages(selectedGroup!.groupId).listen((event) {
+          MessageApi.getGroupMessages(selectedGroup!.groupId).listen((event) async {
         debugPrint('Group Messages Received: ${event.length}');
-        // Filtrar mensajes expirados
+        
+        // Preservar fileUrl de mensajes locales que tienen URL remota
+        final Map<String, String> localFileUrls = {};
+        for (var localMsg in messages) {
+          if (localMsg.fileUrl.isNotEmpty && 
+              localMsg.fileUrl.startsWith('http') && 
+              (localMsg.type == MessageType.image || localMsg.type == MessageType.video || localMsg.type == MessageType.doc)) {
+            localFileUrls[localMsg.msgId] = localMsg.fileUrl;
+            debugPrint('💾 Preservando fileUrl local para grupo ${localMsg.msgId}: ${localMsg.fileUrl.substring(0, localMsg.fileUrl.length > 50 ? 50 : localMsg.fileUrl.length)}...');
+          }
+        }
+        
+        // Filtrar mensajes expirados y preservar fileUrl
         final now = DateTime.now();
-        final validMessages = event.where((message) {
+        final validMessages = event.map((message) {
+          // Si este mensaje tiene un fileUrl local preservado, usarlo
+          if (localFileUrls.containsKey(message.msgId) && 
+              (message.type == MessageType.image || message.type == MessageType.video || message.type == MessageType.doc)) {
+            final preservedFileUrl = localFileUrls[message.msgId]!;
+            if (message.fileUrl != preservedFileUrl) {
+              debugPrint('🔄 Actualizando fileUrl desde local para grupo ${message.msgId}');
+              // Crear nuevo mensaje con el fileUrl preservado
+              return Message(
+                msgId: message.msgId,
+                docRef: message.docRef,
+                senderId: message.senderId,
+                type: message.type,
+                textMsg: message.textMsg,
+                fileUrl: preservedFileUrl,
+                gifUrl: message.gifUrl,
+                location: message.location,
+                videoThumbnail: message.videoThumbnail,
+                isRead: message.isRead,
+                isDeleted: message.isDeleted,
+                isForwarded: message.isForwarded,
+                sentAt: message.sentAt,
+                updatedAt: message.updatedAt,
+                replyMessage: message.replyMessage,
+                groupUpdate: message.groupUpdate,
+                reactions: message.reactions,
+                translations: message.translations,
+                detectedLanguage: message.detectedLanguage,
+                translatedAt: message.translatedAt,
+                isTemporary: message.isTemporary,
+                expiresAt: message.expiresAt,
+                viewOnce: message.viewOnce,
+                viewedBy: message.viewedBy,
+              );
+            }
+          }
+          return message;
+        }).where((message) {
           if (message.isTemporary && message.expiresAt != null) {
             return message.expiresAt!.isAfter(now);
           }
@@ -1044,10 +1117,51 @@ class MessageController extends GetxController {
         }).toList();
         
         // Log individual messages for debugging
+        int imageCount = 0;
+        int textCount = 0;
         for (var message in validMessages) {
+          if (message.type == MessageType.image) {
+            imageCount++;
+            print('🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️ MENSAJE DE IMAGEN EN validMessages (GRUPO) 🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️');
+            print('   - msgId: ${message.msgId}');
+            print('   - type: ${message.type}');
+            print('   - fileUrl: ${message.fileUrl.isEmpty ? "VACÍO" : message.fileUrl.substring(0, message.fileUrl.length > 50 ? 50 : message.fileUrl.length)}...');
+            print('   - fileUrl length: ${message.fileUrl.length}');
+            print('   - fileUrl startsWith http: ${message.fileUrl.startsWith("http")}');
+          } else if (message.type == MessageType.text) {
+            textCount++;
+          }
           debugPrint('Group Message - ID: ${message.msgId}, Type: ${message.type}, Text: ${message.textMsg.isEmpty ? "Empty" : "Has content"}');
+          if (message.type == MessageType.image) {
+            debugPrint('📥 [STICKER] Mensaje de imagen cargado desde Firestore:');
+            debugPrint('   - msgId: ${message.msgId}');
+            debugPrint('   - type: ${message.type}');
+            debugPrint('   - fileUrl: ${message.fileUrl.isEmpty ? "VACÍO" : (message.fileUrl.length > 80 ? message.fileUrl.substring(0, 80) + "..." : message.fileUrl)}');
+            debugPrint('   - fileUrl length: ${message.fileUrl.length}');
+            debugPrint('   - fileUrl startsWith http: ${message.fileUrl.startsWith("http")}');
+          }
         }
+        print('🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨 ANTES DE messages.value = validMessages (GRUPO) 🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨');
+        print('   - validMessages.length: ${validMessages.length}');
+        print('   - imageCount en validMessages: $imageCount');
+        print('   - textCount en validMessages: $textCount');
         messages.value = validMessages;
+        
+        // FORZAR: Actualizar explícitamente la lista para que GetX detecte el cambio
+        messages.refresh();
+        
+        print('🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨 DESPUÉS DE messages.value = validMessages (GRUPO) 🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨');
+        print('   - messages.length: ${messages.length}');
+        final imageCountInMessages = messages.where((m) => m.type == MessageType.image).length;
+        print('   - imageCount en messages: $imageCountInMessages');
+        if (imageCountInMessages > 0) {
+          final firstImage = messages.firstWhere((m) => m.type == MessageType.image);
+          print('   - Primer mensaje de imagen: msgId=${firstImage.msgId}, fileUrl=${firstImage.fileUrl.isEmpty ? "VACÍO" : firstImage.fileUrl.substring(0, 50)}...');
+        }
+        
+        // FORZAR: Esperar un frame para que GetX procese el cambio
+        await Future.delayed(const Duration(milliseconds: 100));
+        
         isLoading.value = false;
         scrollToBottom();
       }, onError: (e) {
@@ -1065,12 +1179,83 @@ class MessageController extends GetxController {
       _stream = MessageApi.getMessages(user!.userId).listen((event) async {
         debugPrint('Messages Received: ${event.length}');
         
+        // IMPORTANTE: Para mensajes de imagen, SIEMPRE usar el fileUrl de Firebase si está presente
+        // Solo preservar fileUrl local si el mensaje de Firebase NO tiene fileUrl o está vacío
+        final Map<String, String> localFileUrls = {};
+        for (var localMsg in messages) {
+          if (localMsg.fileUrl.isNotEmpty && 
+              localMsg.fileUrl.startsWith('http') && 
+              (localMsg.type == MessageType.image || localMsg.type == MessageType.video || localMsg.type == MessageType.doc)) {
+            localFileUrls[localMsg.msgId] = localMsg.fileUrl;
+            debugPrint('💾 Preservando fileUrl local para ${localMsg.msgId}: ${localMsg.fileUrl.substring(0, localMsg.fileUrl.length > 50 ? 50 : localMsg.fileUrl.length)}...');
+          }
+        }
+        
         // Filtrar mensajes expirados
         final now = DateTime.now();
         final List<Message> validMessages = [];
         final List<Message> expiredMessages = [];
         
         for (var message in event) {
+          // LOG: Verificar si es mensaje de imagen antes de procesar
+          if (message.type == MessageType.image) {
+            print('🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️ PROCESANDO MENSAJE DE IMAGEN EN event 🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️');
+            print('   - msgId: ${message.msgId}');
+            print('   - type: ${message.type}');
+            print('   - fileUrl: ${message.fileUrl.isEmpty ? "VACÍO" : message.fileUrl.substring(0, message.fileUrl.length > 50 ? 50 : message.fileUrl.length)}...');
+            print('   - fileUrl length: ${message.fileUrl.length}');
+            print('   - fileUrl startsWith http: ${message.fileUrl.startsWith("http")}');
+            print('   - isTemporary: ${message.isTemporary}');
+            print('   - expiresAt: ${message.expiresAt}');
+          }
+          
+          // IMPORTANTE: Para mensajes de imagen, priorizar el fileUrl de Firebase
+          // Solo usar el fileUrl local si el de Firebase está vacío
+          if (message.type == MessageType.image || message.type == MessageType.video || message.type == MessageType.doc) {
+            // Si el mensaje de Firebase tiene un fileUrl válido, usarlo directamente
+            if (message.fileUrl.isNotEmpty && message.fileUrl.startsWith('http')) {
+              debugPrint('✅ Usando fileUrl de Firebase para ${message.msgId}: ${message.fileUrl.substring(0, message.fileUrl.length > 50 ? 50 : message.fileUrl.length)}...');
+              // El mensaje ya tiene el fileUrl correcto, no hacer nada
+            } 
+            // Si el mensaje de Firebase NO tiene fileUrl pero tenemos uno local preservado, usarlo
+            else if (localFileUrls.containsKey(message.msgId)) {
+              final preservedFileUrl = localFileUrls[message.msgId]!;
+              debugPrint('🔄 Actualizando fileUrl desde local para ${message.msgId} (Firebase no tenía fileUrl)');
+              debugPrint('   - fileUrl anterior: ${message.fileUrl.isEmpty ? "VACÍO" : message.fileUrl.substring(0, message.fileUrl.length > 50 ? 50 : message.fileUrl.length)}...');
+              debugPrint('   - fileUrl nuevo: ${preservedFileUrl.substring(0, preservedFileUrl.length > 50 ? 50 : preservedFileUrl.length)}...');
+              // Crear nuevo mensaje con el fileUrl preservado
+              message = Message(
+                msgId: message.msgId,
+                docRef: message.docRef,
+                senderId: message.senderId,
+                type: message.type,
+                textMsg: message.textMsg,
+                fileUrl: preservedFileUrl,
+                gifUrl: message.gifUrl,
+                location: message.location,
+                videoThumbnail: message.videoThumbnail,
+                isRead: message.isRead,
+                isDeleted: message.isDeleted,
+                isForwarded: message.isForwarded,
+                sentAt: message.sentAt,
+                updatedAt: message.updatedAt,
+                replyMessage: message.replyMessage,
+                groupUpdate: message.groupUpdate,
+                reactions: message.reactions,
+                translations: message.translations,
+                detectedLanguage: message.detectedLanguage,
+                translatedAt: message.translatedAt,
+                isTemporary: message.isTemporary,
+                expiresAt: message.expiresAt,
+                viewOnce: message.viewOnce,
+                viewedBy: message.viewedBy,
+              );
+            } else {
+              // No hay fileUrl ni local ni en Firebase - esto es un error
+              debugPrint('❌❌❌ ERROR: Mensaje de imagen ${message.msgId} sin fileUrl en Firebase ni local ❌❌❌');
+            }
+          }
+          
           if (message.isTemporary && message.expiresAt != null) {
             final isExpired = message.expiresAt!.isBefore(now) || message.expiresAt!.difference(now).inSeconds <= 0;
             if (isExpired) {
@@ -1090,6 +1275,12 @@ class MessageController extends GetxController {
               validMessages.add(message);
             }
           } else {
+            // LOG: Verificar si es mensaje de imagen antes de agregar
+            if (message.type == MessageType.image) {
+              print('🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️ AGREGANDO MENSAJE DE IMAGEN A validMessages 🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️');
+              print('   - msgId: ${message.msgId}');
+              print('   - fileUrl: ${message.fileUrl.isEmpty ? "VACÍO" : message.fileUrl.substring(0, message.fileUrl.length > 50 ? 50 : message.fileUrl.length)}...');
+            }
             validMessages.add(message);
           }
         }
@@ -1098,8 +1289,33 @@ class MessageController extends GetxController {
           debugPrint('🗑️ Eliminando ${expiredMessages.length} mensaje(s) expirado(s) de la lista local');
         }
         
+        // LOG: Verificar cuántos mensajes de imagen hay en validMessages
+        final imageCountInValid = validMessages.where((m) => m.type == MessageType.image).length;
+        print('🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️ TOTAL MENSAJES DE IMAGEN EN validMessages: $imageCountInValid 🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️');
+        
         // Log individual messages for debugging (incluye info de sender para depurar traducción)
+        print('🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨 _getMessages: validMessages.length=${validMessages.length} 🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨');
+        int imageCount = 0;
+        int textCount = 0;
         for (var message in validMessages) {
+          if (message.type == MessageType.image) {
+            imageCount++;
+            print('🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️ MENSAJE DE IMAGEN EN validMessages 🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️');
+            print('   - msgId: ${message.msgId}');
+            print('   - type: ${message.type}');
+            print('   - type.name: ${message.type.name}');
+            print('   - fileUrl: ${message.fileUrl.isEmpty ? "VACÍO" : message.fileUrl.substring(0, message.fileUrl.length > 50 ? 50 : message.fileUrl.length)}...');
+            print('   - fileUrl length: ${message.fileUrl.length}');
+            print('   - fileUrl startsWith http: ${message.fileUrl.startsWith("http")}');
+            debugPrint('📥 [STICKER] Mensaje de imagen cargado desde Firestore:');
+            debugPrint('   - msgId: ${message.msgId}');
+            debugPrint('   - type: ${message.type}');
+            debugPrint('   - fileUrl: ${message.fileUrl.isEmpty ? "VACÍO" : (message.fileUrl.length > 80 ? message.fileUrl.substring(0, 80) + "..." : message.fileUrl)}');
+            debugPrint('   - fileUrl length: ${message.fileUrl.length}');
+            debugPrint('   - fileUrl startsWith http: ${message.fileUrl.startsWith("http")}');
+          } else if (message.type == MessageType.text) {
+            textCount++;
+          }
           debugPrint(
             'Private Message - ID: ${message.msgId}, '
             'Type: ${message.type}, '
@@ -1109,9 +1325,42 @@ class MessageController extends GetxController {
             'IsDeleted: ${message.isDeleted}',
           );
         }
+        print('🚨 Total mensajes de imagen encontrados: $imageCount');
         
         // Actualizar lista local primero
+        print('🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨 ANTES DE messages.value = validMessages 🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨');
+        print('   - validMessages.length: ${validMessages.length}');
+        print('   - imageCount en validMessages: $imageCount');
+        print('   - textCount en validMessages: $textCount');
+        
         messages.value = validMessages;
+        
+        // FORZAR: Actualizar explícitamente la lista para que GetX detecte el cambio
+        messages.refresh();
+        
+        print('🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨 DESPUÉS DE messages.value = validMessages 🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨');
+        print('   - messages.length: ${messages.length}');
+        final imageCountInMessages = messages.where((m) => m.type == MessageType.image).length;
+        print('   - imageCount en messages: $imageCountInMessages');
+        if (imageCountInMessages > 0) {
+          final firstImage = messages.firstWhere((m) => m.type == MessageType.image);
+          print('   - Primer mensaje de imagen: msgId=${firstImage.msgId}, fileUrl=${firstImage.fileUrl.isEmpty ? "VACÍO" : firstImage.fileUrl.substring(0, 50)}...');
+        }
+        
+        // FORZAR: Actualizar el controlador para que GetX detecte el cambio
+        update();
+        
+        // FORZAR: Usar SchedulerBinding para forzar actualización después del frame
+        if (Get.context != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            print('🔄🔄🔄 FORZANDO ACTUALIZACIÓN DESPUÉS DEL FRAME 🔄🔄🔄');
+            update();
+            messages.refresh();
+          });
+        }
+        
+        // FORZAR: Esperar un frame para que GetX procese el cambio
+        await Future.delayed(const Duration(milliseconds: 100));
         
         // Traducir mensajes que no tienen traducción usando la lista actual
         await _translateMessagesIfNeeded(messages);
@@ -1136,6 +1385,16 @@ class MessageController extends GetxController {
     String? gifUrl,
     Location? location,
   }) async {
+    // LOG CRÍTICO AL INICIO: Verificar que sendMessage se está llamando
+    print('🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨 sendMessage LLAMADO 🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨');
+    print('   - type: $type');
+    print('   - type.name: ${type.name}');
+    print('   - file != null: ${file != null}');
+    print('   - file path: ${file?.path ?? "NULL"}');
+    print('   - text != null: ${text != null}');
+    print('   - text: ${text ?? "NULL"}');
+    debugPrint('🚨 sendMessage LLAMADO - type=$type, file=${file?.path ?? "NULL"}');
+    
     // Vars
     String? textMsg, fileUrl, videoThumbnailUrl, localVideoThumbnailPath;
     File? videoThumbnailFile;
@@ -1158,6 +1417,14 @@ class MessageController extends GetxController {
       case MessageType.doc:
       case MessageType.video:
       case MessageType.audio:
+        // LOG CRÍTICO: Verificar que el tipo es correcto
+        print('🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨 sendMessage: ENVIANDO IMAGEN 🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨');
+        print('   - type: $type');
+        print('   - type == MessageType.image: ${type == MessageType.image}');
+        print('   - file != null: ${file != null}');
+        print('   - file path: ${file?.path ?? "NULL"}');
+        debugPrint('🚨 sendMessage: ENVIANDO IMAGEN - type=$type, file=${file?.path ?? "NULL"}');
+        
         // Para archivos, crear el mensaje inmediatamente con el archivo local
         final bool isVideo = type == MessageType.video;
         // Obtener preferencias del usuario actual
@@ -1189,13 +1456,40 @@ class MessageController extends GetxController {
           viewOnce: isViewOnce,
           viewedBy: isViewOnce ? [] : null,
         );
+        
+        // LOG CRÍTICO: Verificar que el mensaje temporal tiene el tipo correcto
+        print('🚨 tempMessage creado: msgId=${tempMessage.msgId}, type=${tempMessage.type}, type.name=${tempMessage.type.name}');
+        debugPrint('🚨 tempMessage creado: msgId=${tempMessage.msgId}, type=${tempMessage.type}');
 
         // Agregar mensaje temporal a la lista inmediatamente
         messages.insert(0, tempMessage);
         scrollToBottom();
 
         // Subir archivo en background
+        print('📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤 INICIANDO SUBIDA DE ARCHIVO 📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤');
+        debugPrint('📤📤📤 [IMAGE_UPLOAD] Iniciando subida de archivo para mensaje: $messageId 📤📤📤');
+        print('📤 [IMAGE_UPLOAD] Mensaje ID: $messageId');
+        print('📤 [IMAGE_UPLOAD] Tipo de mensaje: $type');
+        print('📤 [IMAGE_UPLOAD] Archivo local: ${file.path}');
+        final fileSize = await file.length();
+        print('📤 [IMAGE_UPLOAD] Tamaño del archivo: $fileSize bytes');
+        debugPrint('📤 [IMAGE_UPLOAD] Archivo local: ${file.path}');
+        debugPrint('📤 [IMAGE_UPLOAD] Tamaño del archivo: $fileSize bytes');
+        
+        print('🔄 [IMAGE_UPLOAD] Llamando a _uploadFile...');
         fileUrl = await _uploadFile(file);
+        
+        print('📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤 SUBIDA COMPLETADA 📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤');
+        debugPrint('📤📤📤 [IMAGE_UPLOAD] Archivo subido, fileUrl obtenido 📤📤📤');
+        print('📤 [IMAGE_UPLOAD] fileUrl: ${fileUrl != null ? (fileUrl!.length > 100 ? fileUrl!.substring(0, 100) + "..." : fileUrl!) : "NULL"}');
+        print('📤 [IMAGE_UPLOAD] fileUrl length: ${fileUrl?.length ?? 0}');
+        print('📤 [IMAGE_UPLOAD] fileUrl startsWith http: ${fileUrl?.startsWith("http") ?? false}');
+        print('📤 [IMAGE_UPLOAD] fileUrl startsWith https: ${fileUrl?.startsWith("https") ?? false}');
+        debugPrint('📤 [IMAGE_UPLOAD] fileUrl: ${fileUrl != null ? (fileUrl!.length > 100 ? fileUrl!.substring(0, 100) + "..." : fileUrl!) : "NULL"}');
+        debugPrint('📤 [IMAGE_UPLOAD] fileUrl length: ${fileUrl?.length ?? 0}');
+        debugPrint('📤 [IMAGE_UPLOAD] fileUrl startsWith http: ${fileUrl?.startsWith("http") ?? false}');
+        debugPrint('📤 [IMAGE_UPLOAD] fileUrl startsWith https: ${fileUrl?.startsWith("https") ?? false}');
+        
         if (isVideo && videoThumbnailFile != null) {
           videoThumbnailUrl = await _uploadThumbnail(videoThumbnailFile);
           if (videoThumbnailUrl != null) {
@@ -1203,8 +1497,22 @@ class MessageController extends GetxController {
           }
         }
         
+        // IMPORTANTE: Si fileUrl es null o vacío, no continuar
+        if (fileUrl == null || fileUrl!.isEmpty) {
+          debugPrint('❌ [IMAGE_UPLOAD] fileUrl es null o vacío después de subir, no se puede continuar');
+          // Remover mensaje temporal de la lista
+          messages.removeWhere((m) => m.msgId == messageId);
+          DialogHelper.showSnackbarMessage(
+            SnackMsgType.error,
+            'Error al subir la imagen. Por favor, inténtalo de nuevo.',
+          );
+          return;
+        }
+        
         // Actualizar mensaje con URL final
+        debugPrint('📤 [IMAGE_UPLOAD] Buscando mensaje en lista para actualizar: $messageId');
         final int index = messages.indexWhere((m) => m.msgId == messageId);
+        debugPrint('📤 [IMAGE_UPLOAD] Índice encontrado: $index (total mensajes: ${messages.length})');
         if (index != -1) {
           // Obtener preferencias del usuario actual
           final currentUser = AuthController.instance.currentUser;
@@ -1235,11 +1543,92 @@ class MessageController extends GetxController {
             viewOnce: isViewOnce,
             viewedBy: isViewOnce ? [] : null,
           );
+          
+          // LOG CRÍTICO: Verificar que el mensaje actualizado tiene el tipo correcto
+          print('🚨 updatedMessage creado: msgId=${updatedMessage.msgId}, type=${updatedMessage.type}, type.name=${updatedMessage.type.name}');
+          print('   - fileUrl: ${updatedMessage.fileUrl.length > 50 ? updatedMessage.fileUrl.substring(0, 50) + "..." : updatedMessage.fileUrl}');
+          debugPrint('🚨 updatedMessage creado: msgId=${updatedMessage.msgId}, type=${updatedMessage.type}');
+          debugPrint('📤 [IMAGE_UPLOAD] Actualizando mensaje en lista local con fileUrl: ${fileUrl != null ? (fileUrl!.length > 50 ? fileUrl!.substring(0, 50) + "..." : fileUrl!) : "NULL"}');
+          
+          // Actualizar el mensaje en la lista
           messages[index] = updatedMessage;
+          
+          // FORZAR: Reemplazar toda la lista para que GetX detecte el cambio
+          // Esto es necesario porque GetX puede no detectar cambios en elementos individuales
+          final currentMessages = List<Message>.from(messages);
+          messages.value = currentMessages;
+          
+          // También forzar actualización con refresh
+          messages.refresh();
+          
+          debugPrint('🔄 [IMAGE_UPLOAD] Lista de mensajes actualizada, total: ${messages.length}');
+          debugPrint('🔄 [IMAGE_UPLOAD] Mensaje actualizado: msgId=$messageId, fileUrl=${fileUrl != null ? (fileUrl!.length > 50 ? fileUrl!.substring(0, 50) + "..." : fileUrl!) : "NULL"}');
+          debugPrint('🔄 [IMAGE_UPLOAD] Forzando actualización de UI con messages.value = y messages.refresh()');
+          
+          // Guardar mensaje en Firebase con la URL final
+          if (fileUrl != null && fileUrl.isNotEmpty) {
+            debugPrint('📤 [IMAGE_UPLOAD] Guardando mensaje en Firebase...');
+            debugPrint('📤 [IMAGE_UPLOAD] - msgId: $messageId');
+            debugPrint('📤 [IMAGE_UPLOAD] - fileUrl: ${fileUrl.length > 80 ? fileUrl.substring(0, 80) + "..." : fileUrl}');
+            debugPrint('📤 [IMAGE_UPLOAD] - fileUrl length: ${fileUrl.length}');
+            debugPrint('📤 [IMAGE_UPLOAD] - fileUrl startsWith http: ${fileUrl.startsWith("http")}');
+            debugPrint('📤 [IMAGE_UPLOAD] - isGroup: $isGroup');
+            debugPrint('📤 [IMAGE_UPLOAD] - updatedMessage.fileUrl: ${updatedMessage.fileUrl.length > 80 ? updatedMessage.fileUrl.substring(0, 80) + "..." : updatedMessage.fileUrl}');
+            debugPrint('📤 [IMAGE_UPLOAD] - updatedMessage.fileUrl length: ${updatedMessage.fileUrl.length}');
+            
+            try {
+              // IMPORTANTE: Guardar el mensaje completo directamente en Firebase
+              // No intentar actualizar primero porque el mensaje no existe todavía
+              if (isGroup) {
+                debugPrint('📤 [IMAGE_UPLOAD] Guardando mensaje completo en grupo: ${selectedGroup?.groupId}');
+                await MessageApi.sendGroupMessage(
+                  group: selectedGroup!,
+                  message: updatedMessage,
+                );
+              } else {
+                debugPrint('📤 [IMAGE_UPLOAD] Guardando mensaje completo en chat 1-1 con: ${user?.userId}');
+                await MessageApi.sendMessage(
+                  message: updatedMessage,
+                  receiver: user!,
+                );
+              }
+              debugPrint('✅ [IMAGE_UPLOAD] Mensaje guardado en Firebase exitosamente');
+              
+              // Actualizar nuevamente después de Firebase para asegurar sincronización
+              final updatedIndex = messages.indexWhere((m) => m.msgId == messageId);
+              if (updatedIndex != -1) {
+                // Asegurar que el fileUrl se actualiza correctamente
+                messages[updatedIndex] = updatedMessage;
+                // Forzar actualización de la lista
+                final currentMessages = List<Message>.from(messages);
+                messages.value = currentMessages;
+                messages.refresh();
+                debugPrint('🔄 [IMAGE_UPLOAD] Mensaje actualizado en lista local después de Firebase');
+                debugPrint('🔄 [IMAGE_UPLOAD] - fileUrl en lista: ${messages[updatedIndex].fileUrl.length > 80 ? messages[updatedIndex].fileUrl.substring(0, 80) + "..." : messages[updatedIndex].fileUrl}');
+              }
+            } catch (e, stackTrace) {
+              debugPrint('❌ [IMAGE_UPLOAD] Error guardando mensaje en Firebase: $e');
+              debugPrint('❌ [IMAGE_UPLOAD] Stack trace: $stackTrace');
+              // Mostrar error al usuario
+              DialogHelper.showSnackbarMessage(
+                SnackMsgType.error,
+                'Error al guardar la imagen en Firebase: ${e.toString()}',
+              );
+            }
+          } else {
+            debugPrint('⚠️ [IMAGE_UPLOAD] fileUrl está vacío o es null, no se guarda en Firebase');
+            // Remover mensaje temporal si no se pudo obtener fileUrl
+            messages.removeWhere((m) => m.msgId == messageId);
+            DialogHelper.showSnackbarMessage(
+              SnackMsgType.error,
+              'Error: No se pudo obtener la URL de la imagen subida',
+            );
+          }
           
           // Incrementar trigger para forzar reconstrucción de mensajes de imagen
           if (type == MessageType.image) {
             imageMessageUpdateTrigger.value++;
+            debugPrint('🔄 [IMAGE_UPLOAD] Trigger incrementado: ${imageMessageUpdateTrigger.value}');
           }
         }
         break;
@@ -1289,29 +1678,54 @@ class MessageController extends GetxController {
     }
 
     // Send to API
-    if (isGroup) {
-      final Group group = selectedGroup!;
-      // Check broadcast
-      if (group.isBroadcast) {
-        MessageApi.sendBroadcastMessage(group: group, message: message);
+    // IMPORTANTE: Para mensajes de imagen/video/doc, NO enviar aquí porque ya se envió después de subir el archivo
+    // Solo enviar mensajes de texto, location, gif y audio aquí
+    if (type == MessageType.text || type == MessageType.location || type == MessageType.gif || type == MessageType.audio) {
+      if (isGroup) {
+        final Group group = selectedGroup!;
+        // Check broadcast
+        if (group.isBroadcast) {
+          MessageApi.sendBroadcastMessage(group: group, message: message);
+        } else {
+          MessageApi.sendGroupMessage(group: group, message: message);
+        }
       } else {
-        MessageApi.sendGroupMessage(group: group, message: message);
+        MessageApi.sendMessage(message: message, receiver: user!);
       }
     } else {
-      MessageApi.sendMessage(message: message, receiver: user!);
+      // Para mensajes de imagen/video/doc, el mensaje ya se guardó en Firebase con updateMessageFileUrl
+      debugPrint('📤 [IMAGE_UPLOAD] Mensaje de archivo ya guardado en Firebase con updateMessageFileUrl, no se envía de nuevo');
+    }
+    
+    // Continuar con el procesamiento del asistente si aplica
+    if (!isGroup) {
       
-      // Si es un mensaje de texto al asistente IA, obtener respuesta automática
+      // Si es un mensaje al asistente IA, obtener respuesta automática
       debugPrint('🔍 sendMessage: Verificando si es asistente...');
-      debugPrint('🔍 sendMessage: type = $type, MessageType.text = ${MessageType.text}');
+      debugPrint('🔍 sendMessage: type = $type');
       debugPrint('🔍 sendMessage: user?.userId = ${user?.userId}');
-      debugPrint('🔍 sendMessage: textMsg = ${textMsg?.substring(0, textMsg.length > 20 ? 20 : textMsg.length)}');
+      debugPrint('🔍 sendMessage: file != null: ${file != null}');
       
-      if (type == MessageType.text && user != null && user!.userId == 'klink_ai_assistant') {
-        debugPrint('✅ sendMessage: Es un mensaje al asistente, llamando _handleAssistantResponse...');
-        _handleAssistantResponse(textMsg ?? '');
+      if (user != null && user!.userId == 'klink_ai_assistant') {
+        if (type == MessageType.text) {
+          debugPrint('✅ sendMessage: Es un mensaje de texto al asistente, llamando _handleAssistantResponse...');
+          _handleAssistantResponse(textMsg ?? '');
+        } else if (type == MessageType.image) {
+          // Para imágenes, procesar automáticamente con la IA
+          if (file != null) {
+            debugPrint('✅ sendMessage: Es una imagen al asistente, procesando automáticamente...');
+            // Usar el archivo local directamente para procesar con la IA
+            _handleAssistantImageResponse(file, textMsg ?? '¿Qué ves en esta imagen?').catchError((error) {
+              debugPrint('❌ Error procesando imagen con IA: $error');
+            });
+          } else {
+            debugPrint('⚠️ sendMessage: Es una imagen al asistente pero file es null');
+          }
+        } else {
+          debugPrint('❌ sendMessage: Tipo de mensaje no soportado para el asistente: $type');
+        }
       } else {
         debugPrint('❌ sendMessage: No es un mensaje al asistente');
-        debugPrint('   - type == MessageType.text: ${type == MessageType.text}');
         debugPrint('   - user != null: ${user != null}');
         debugPrint('   - user?.userId == klink_ai_assistant: ${user?.userId == 'klink_ai_assistant'}');
       }
@@ -1365,6 +1779,56 @@ class MessageController extends GetxController {
       // Asegurar que se desactive el estado cuando termine (por si acaso)
       isAIResponding.value = false;
       debugPrint('🔵 _handleAssistantResponse: Finalizado, isAIResponding = false');
+    }
+  }
+
+  /// Maneja la respuesta automática del asistente IA cuando se envía una imagen
+  Future<void> _handleAssistantImageResponse(File imageFile, String question) async {
+    try {
+      debugPrint('🖼️ _handleAssistantImageResponse: Iniciando con imagen y pregunta: $question');
+      
+      // Marcar que la IA está respondiendo
+      isAIResponding.value = true;
+      
+      // Verificar si el controlador está disponible, si no, inicializarlo
+      AssistantController assistantController;
+      try {
+        assistantController = Get.find<AssistantController>();
+        debugPrint('🖼️ _handleAssistantImageResponse: AssistantController encontrado');
+      } catch (e) {
+        debugPrint('⚠️ AssistantController no encontrado, inicializando...');
+        assistantController = Get.put(AssistantController());
+        debugPrint('🖼️ _handleAssistantImageResponse: AssistantController inicializado');
+      }
+      
+      // Observar el estado isTyping del AssistantController para sincronizar
+      final subscription = assistantController.isTyping.listen((isTyping) {
+        isAIResponding.value = isTyping;
+        debugPrint('🖼️ _handleAssistantImageResponse: isAIResponding actualizado a $isTyping');
+      });
+      
+      try {
+        // Convertir imagen a base64
+        debugPrint('🖼️ _handleAssistantImageResponse: Leyendo archivo de imagen...');
+        final imageBytes = await imageFile.readAsBytes();
+        final imageBase64 = base64Encode(imageBytes);
+        debugPrint('🖼️ _handleAssistantImageResponse: Imagen convertida a base64 (${imageBase64.length} caracteres)');
+        
+        // Llamar al asistente con imagen (esto guardará automáticamente la respuesta en Firestore)
+        debugPrint('🖼️ _handleAssistantImageResponse: Llamando a askAssistantWithImage...');
+        final response = await assistantController.askAssistantWithImage(question, imageBase64);
+        debugPrint('🖼️ _handleAssistantImageResponse: Respuesta recibida: ${response?.substring(0, response.length > 50 ? 50 : response.length)}...');
+      } finally {
+        // Cancelar la suscripción cuando termine
+        await subscription.cancel();
+      }
+    } catch (e, stackTrace) {
+      debugPrint('❌ Error obteniendo respuesta del asistente con imagen: $e');
+      debugPrint('❌ StackTrace: $stackTrace');
+    } finally {
+      // Asegurar que se desactive el estado cuando termine (por si acaso)
+      isAIResponding.value = false;
+      debugPrint('🖼️ _handleAssistantImageResponse: Finalizado, isAIResponding = false');
     }
   }
 
@@ -1454,16 +1918,26 @@ class MessageController extends GetxController {
       // Update loading status
       isUploading.value = true;
 
-      debugPrint('📤 Subiendo archivo: ${file.path}');
-      debugPrint('📊 Tamaño del archivo: ${await file.length()} bytes');
+      print('📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤 _uploadFile LLAMADO 📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤');
+      debugPrint('📤 [UPLOAD_FILE] Subiendo archivo: ${file.path}');
+      print('📤 [UPLOAD_FILE] Subiendo archivo: ${file.path}');
+      print('📊 [UPLOAD_FILE] Tamaño del archivo: ${await file.length()} bytes');
+      print('📊 [UPLOAD_FILE] Usuario: ${AuthController.instance.currentUser.userId}');
+      debugPrint('📊 [UPLOAD_FILE] Tamaño del archivo: ${await file.length()} bytes');
+      debugPrint('📊 [UPLOAD_FILE] Usuario: ${AuthController.instance.currentUser.userId}');
 
       // Upload file
+      print('🔄 [UPLOAD_FILE] Llamando a AppHelper.uploadFile...');
       fileUrl = await AppHelper.uploadFile(
         file: file,
         userId: AuthController.instance.currentUser.userId,
       );
 
-      debugPrint('✅ Archivo subido exitosamente: $fileUrl');
+      print('✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅ _uploadFile COMPLETADO ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅');
+      debugPrint('✅ [UPLOAD_FILE] Archivo subido exitosamente');
+      print('✅ [UPLOAD_FILE] Archivo subido exitosamente');
+      print('✅ [UPLOAD_FILE] URL obtenida: ${fileUrl != null ? (fileUrl!.length > 80 ? fileUrl!.substring(0, 80) + "..." : fileUrl!) : "NULL"}');
+      debugPrint('✅ [UPLOAD_FILE] URL obtenida: ${fileUrl != null ? (fileUrl!.length > 80 ? fileUrl!.substring(0, 80) + "..." : fileUrl!) : "NULL"}');
 
       // Remove file from uploading list
       uploadingFiles.remove(file);
@@ -1473,6 +1947,9 @@ class MessageController extends GetxController {
 
       return fileUrl;
     } catch (e, stackTrace) {
+      print('❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌ ERROR EN _uploadFile ❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌');
+      print('❌ Error: $e');
+      print('❌ Stack trace: $stackTrace');
       debugPrint('❌ Error subiendo archivo: $e');
       debugPrint('❌ Stack trace: $stackTrace');
       

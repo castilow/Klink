@@ -50,6 +50,9 @@ class MessageScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // FORZAR: Log al inicio del build para verificar que se ejecuta
+    debugPrint('🔷🔷🔷 MessageScreen.build INICIADO - ${DateTime.now().millisecondsSinceEpoch}');
+    
     // Check for Klink AI User
     if (user?.userId == 'klink_ai_assistant') {
       return KlinkAIChatView(user: user!);
@@ -75,6 +78,17 @@ class MessageScreen extends StatelessWidget {
 
     return Obx(
       () {
+        // FORZAR: Log al inicio del Obx EXTERNO (Scaffold) para verificar que se ejecuta
+        print('🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷 Obx EXTERNO (Scaffold) INICIADO 🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷');
+        debugPrint('🔷🔷🔷 Obx EXTERNO (Scaffold) INICIADO - ${DateTime.now().millisecondsSinceEpoch}');
+        
+        // FORZAR: Observar controller.messages para que el Obx se reconstruya cuando cambien los mensajes
+        final messagesLength = controller.messages.length; // Forzar observación
+        final isEmpty = controller.messages.isEmpty; // Forzar observación
+        
+        print('🔷 Obx EXTERNO (Scaffold): messagesLength=$messagesLength, isEmpty=$isEmpty');
+        debugPrint('🔷🔷🔷 Obx EXTERNO (Scaffold): messages.length=$messagesLength, isEmpty=$isEmpty');
+        
         // Get selected group instance
         Group? group = controller.selectedGroup;
 
@@ -104,6 +118,41 @@ class MessageScreen extends StatelessWidget {
           }),
           body: Obx(
             () {
+              // FORZAR: Log al inicio del Obx externo para verificar que se ejecuta
+              print('🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷 Obx EXTERNO (body) INICIADO 🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷');
+              debugPrint('🔷🔷🔷 Obx EXTERNO (body) INICIADO - ${DateTime.now().millisecondsSinceEpoch}');
+              
+              // FORZAR: Observar controller.messages para que el Obx se reconstruya cuando cambien los mensajes
+              // Acceder directamente a la RxList sin convertir a lista primero
+              final messagesLength = controller.messages.length; // Forzar observación
+              final isEmpty = controller.messages.isEmpty; // Forzar observación
+              
+              print('🔷 Obx EXTERNO: messagesLength=$messagesLength, isEmpty=$isEmpty');
+              
+              // Verificar mensajes de imagen
+              final imageCount = controller.messages.where((m) => m.type == MessageType.image).length;
+              print('🔷 Obx EXTERNO: imageCount=$imageCount');
+              if (imageCount > 0) {
+                final firstImage = controller.messages.firstWhere((m) => m.type == MessageType.image);
+                print('🔷 Obx EXTERNO: Primer mensaje de imagen - msgId=${firstImage.msgId}, fileUrl=${firstImage.fileUrl.isEmpty ? "VACÍO" : firstImage.fileUrl.substring(0, 50)}...');
+              }
+              
+              // FORZAR: Observar también el trigger de actualización de imágenes
+              final imageUpdateTrigger = controller.imageMessageUpdateTrigger.value;
+              
+              // FORZAR: Acceder a la lista completa para forzar observación
+              // Convertir a lista para iterar, pero después de observar
+              final messagesList = controller.messages.toList();
+              
+              // FORZAR: Acceder a fileUrl de mensajes de imagen para forzar observación
+              for (var msg in messagesList) {
+                if (msg.type == MessageType.image) {
+                  final _ = msg.fileUrl; // Forzar observación del fileUrl para imágenes
+                }
+              }
+              
+              debugPrint('🔷🔷🔷 Obx EXTERNO (body): messages.length=$messagesLength, isEmpty=$isEmpty, imageUpdateTrigger=$imageUpdateTrigger');
+              
               // Get wallpaper path
               final String? wallpaperPath = isGroup
                   ? prefController.groupWallpaperPath.value
@@ -213,19 +262,43 @@ class MessageScreen extends StatelessWidget {
   }
 
   Widget _buildMessagesList(String? wallpaperPath) {
+    // FORZAR: Log al inicio para verificar que _buildMessagesList se está llamando
+    print('🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷 _buildMessagesList LLAMADO 🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷🔷');
+    debugPrint('🔷🔷🔷 _buildMessagesList LLAMADO - ${DateTime.now().millisecondsSinceEpoch}');
+    
     // Get messages controller instance
     final MessageController controller = Get.find();
     // Get selected group instance
     Group? group = controller.selectedGroup;
 
+    // FORZAR: Observar directamente controller.messages para que GetX detecte cambios
     return Obx(
       () {
+        // FORZAR: Log inmediato para verificar que el Obx se ejecuta
+        print('🔄🔄🔄🔄🔄🔄🔄🔄🔄🔄🔄🔄🔄🔄🔄🔄🔄🔄🔄🔄 message_screen.Obx INICIADO 🔄🔄🔄🔄🔄🔄🔄🔄🔄🔄🔄🔄🔄🔄🔄🔄🔄🔄🔄🔄');
+        debugPrint('🔄🔄🔄 message_screen.Obx INICIADO - ${DateTime.now().millisecondsSinceEpoch}');
+        
+        // FORZAR: Acceder directamente a controller.messages para que GetX lo observe
+        // IMPORTANTE: Acceder directamente a la RxList sin convertir primero
+        final RxList<Message> messagesRx = controller.messages;
+        final isLoadingValue = controller.isLoading.value;
+        final messagesLength = messagesRx.length;
+        final isEmpty = messagesRx.isEmpty;
+        
+        // FORZAR: Observar también el trigger de actualización de imágenes
+        final imageUpdateTrigger = controller.imageMessageUpdateTrigger.value;
+        
+        // FORZAR: Log inmediato para verificar que el Obx EXTERNO se ejecuta
+        debugPrint('🔄🔄🔄 message_screen.Obx EXTERNO INICIADO: isLoading=$isLoadingValue, messages.length=$messagesLength, isEmpty=$isEmpty, imageUpdateTrigger=$imageUpdateTrigger');
+        
         // Check loading state
-        if (controller.isLoading.value) {
+        if (isLoadingValue) {
+          debugPrint('🔄 message_screen.Obx EXTERNO: Mostrando LoadingIndicator');
           return const Center(child: LoadingIndicator(size: 35));
         } 
         // Check if messages list is empty
-        else if (controller.messages.isEmpty) {
+        else if (isEmpty) {
+          debugPrint('🔄 message_screen.Obx EXTERNO: messages.isEmpty=true, mostrando NoData');
           return Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -247,83 +320,146 @@ class MessageScreen extends StatelessWidget {
           );
         } 
         else {
-          return Obx(() {
-            // Observar también el trigger de actualización de imágenes para forzar reconstrucción
-            final imageUpdateTrigger = controller.imageMessageUpdateTrigger.value;
+          debugPrint('🔄 message_screen.Obx EXTERNO: messages.isEmpty=false, construyendo ListView directamente');
+          
+          // Observar también el trigger de actualización de imágenes para forzar reconstrucción
+          final imageUpdateTrigger = controller.imageMessageUpdateTrigger.value;
+          
+          // IMPORTANTE: Usar directamente messagesRx que ya observamos arriba
+          // Convertir a lista para usar en el ListView
+          final List<Message> messages = messagesRx.toList();
+          final int messagesLength = messages.length;
             
-            // IMPORTANTE: Acceder directamente a controller.messages para que GetX lo observe
-            // Iterar sobre la lista para forzar la observación de GetX
-            final List<Message> messages = controller.messages.toList();
-            final int messagesLength = controller.messages.length;
-            
-            // Forzar observación accediendo a un elemento de la lista si existe
-            if (messages.isNotEmpty) {
-              final _ = messages.first.msgId; // Forzar acceso para observación
+          // Forzar observación accediendo a un elemento de la lista si existe
+          if (messages.isNotEmpty) {
+            final _ = messages.first.msgId; // Forzar acceso para observación
+          }
+          
+          debugPrint('🔄 message_screen.Obx: Reconstruyendo con ${messages.length} mensajes, imageUpdateTrigger=$imageUpdateTrigger, messagesLength=$messagesLength');
+          
+          // Debug: Verificar mensajes de imagen en la lista
+          final imageMessages = messages.where((m) => m.type == MessageType.image).toList();
+          if (imageMessages.isNotEmpty) {
+            print('🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️ message_screen.Obx: Hay ${imageMessages.length} mensajes de imagen en la lista 🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️');
+            debugPrint('🖼️ message_screen.Obx: Hay ${imageMessages.length} mensajes de imagen en la lista');
+            for (var imgMsg in imageMessages.take(5)) {
+              print('🖼️ message_screen.Obx: Imagen msgId=${imgMsg.msgId}, fileUrl=${imgMsg.fileUrl.isEmpty ? "VACÍO" : imgMsg.fileUrl.substring(0, imgMsg.fileUrl.length > 50 ? 50 : imgMsg.fileUrl.length)}...');
+              debugPrint('🖼️ message_screen.Obx: Imagen msgId=${imgMsg.msgId}, fileUrl=${imgMsg.fileUrl.isEmpty ? "VACÍO" : imgMsg.fileUrl.substring(0, imgMsg.fileUrl.length > 50 ? 50 : imgMsg.fileUrl.length)}...');
+              // Forzar observación del fileUrl para que GetX detecte cambios
+              final _ = imgMsg.fileUrl;
             }
-            
-            debugPrint('🔄 message_screen.Obx: Reconstruyendo con ${messages.length} mensajes, imageUpdateTrigger=$imageUpdateTrigger, messagesLength=$messagesLength');
-            
-            // Debug: Verificar mensajes de imagen en la lista
-            final imageMessages = messages.where((m) => m.type == MessageType.image).toList();
-            if (imageMessages.isNotEmpty) {
-              debugPrint('🖼️ message_screen.Obx: Hay ${imageMessages.length} mensajes de imagen en la lista');
-              for (var imgMsg in imageMessages) {
-                debugPrint('🖼️ message_screen.Obx: Imagen msgId=${imgMsg.msgId}, fileUrl=${imgMsg.fileUrl.isEmpty ? "VACÍO" : imgMsg.fileUrl.substring(0, imgMsg.fileUrl.length > 50 ? 50 : imgMsg.fileUrl.length)}...');
-              }
+          } else {
+            print('⚠️⚠️⚠️ message_screen.Obx: NO HAY MENSAJES DE IMAGEN EN LA LISTA ⚠️⚠️⚠️');
+            debugPrint('⚠️ message_screen.Obx: NO HAY MENSAJES DE IMAGEN EN LA LISTA');
+          }
+          
+          // Forzar observación de todos los mensajes de imagen accediendo a sus fileUrl
+          for (var msg in messages) {
+            if (msg.type == MessageType.image) {
+              final _ = msg.fileUrl; // Forzar observación
             }
-            
-            // Verificar si debemos mostrar el indicador de escritura de la IA (reactivo)
-            final bool showTypingIndicator = !isGroup && 
-                user?.userId == 'klink_ai_assistant' && 
-                controller.isAIResponding.value;
-            
-            debugPrint('💬 showTypingIndicator: $showTypingIndicator (isGroup: $isGroup, userId: ${user?.userId}, isAIResponding: ${controller.isAIResponding.value}, messages.length: ${messages.length})');
-            
-            final int itemCount = messages.length + (showTypingIndicator ? 1 : 0);
-            
-            debugPrint('💬 message_screen.Obx: itemCount=$itemCount, messages.length=${messages.length}');
+          }
+          
+          // Verificar si debemos mostrar el indicador de escritura de la IA (reactivo)
+          final bool showTypingIndicator = !isGroup && 
+              user?.userId == 'klink_ai_assistant' && 
+              controller.isAIResponding.value;
+          
+          debugPrint('💬 showTypingIndicator: $showTypingIndicator (isGroup: $isGroup, userId: ${user?.userId}, isAIResponding: ${controller.isAIResponding.value}, messages.length: ${messages.length})');
+          
+          final int itemCount = messages.length + (showTypingIndicator ? 1 : 0);
+          
+          debugPrint('💬 message_screen.Obx: itemCount=$itemCount, messages.length=${messages.length}');
 
-            return AnimationLimiter(
+          // DEBUG: Log antes de crear el ListView
+          debugPrint('📋 message_screen: Creando ListView con ${messages.length} mensajes, itemCount=$itemCount');
+          final imageCount = messages.where((m) => m.type == MessageType.image).length;
+          debugPrint('📋 message_screen: Hay $imageCount mensajes de imagen en la lista');
+          
+          // FORZAR: Crear una lista de fileUrls de imágenes para el key
+          final imageFileUrls = messages
+              .where((m) => m.type == MessageType.image)
+              .map((m) => m.fileUrl.isEmpty ? "empty" : (m.fileUrl.length > 20 ? m.fileUrl.substring(0, 20) : m.fileUrl))
+              .join("_");
+          
+          debugPrint('📋 message_screen: imageFileUrls para key: ${imageFileUrls.length > 100 ? imageFileUrls.substring(0, 100) : imageFileUrls}...');
+          
+          // FORZAR: Log antes de crear ListView para verificar que hay mensajes de imagen
+          final imageMessagesInList = messages.where((m) => m.type == MessageType.image).toList();
+          debugPrint('📋📋📋 ANTES DE CREAR ListView: Total mensajes=${messages.length}, Mensajes de imagen=${imageMessagesInList.length}');
+          if (imageMessagesInList.isNotEmpty) {
+            for (var imgMsg in imageMessagesInList.take(5)) {
+              debugPrint('📋📋📋 Imagen en lista: msgId=${imgMsg.msgId}, fileUrl=${imgMsg.fileUrl.isEmpty ? "VACÍO" : imgMsg.fileUrl.substring(0, 50)}...');
+            }
+          }
+          
+          return AnimationLimiter(
               child: ListView.builder(
                 // Key que incluye información sobre mensajes de imagen y el trigger para detectar cambios en fileUrl
-                key: ValueKey('messages_${messages.length}_${imageUpdateTrigger}_${messages.where((m) => m.type == MessageType.image).map((m) => m.fileUrl.isEmpty ? "empty" : m.fileUrl.substring(0, m.fileUrl.length > 10 ? 10 : m.fileUrl.length)).join("_")}'),
+                key: ValueKey('messages_${messages.length}_${imageUpdateTrigger}_$imageFileUrls'),
                 reverse: true,
                 shrinkWrap: true,
-                cacheExtent: double.maxFinite,
+                cacheExtent: double.maxFinite, // Renderizar TODOS los mensajes, incluso fuera del viewport
                 controller: controller.scrollController,
                 physics: const BouncingScrollPhysics(),
                 padding: const EdgeInsets.only(bottom: 8),
                 itemCount: itemCount,
                 itemBuilder: (context, index) {
-                  debugPrint('🔵 message_screen.itemBuilder: index=$index, itemCount=$itemCount, messages.length=${messages.length}, showTypingIndicator=$showTypingIndicator');
+                  // Log SIEMPRE para TODOS los items - MUY VISIBLE - FORZAR EJECUCIÓN
+                  print('🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵 itemBuilder EJECUTADO 🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵');
+                  print('   - index: $index');
+                  print('   - itemCount: $itemCount');
+                  print('   - messages.length: ${messages.length}');
+                  print('   - showTypingIndicator: $showTypingIndicator');
+                  debugPrint('🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵 itemBuilder EJECUTADO 🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵');
+                  debugPrint('   - index: $index');
+                  debugPrint('   - itemCount: $itemCount');
+                  debugPrint('   - messages.length: ${messages.length}');
+                  debugPrint('   - showTypingIndicator: $showTypingIndicator');
                   
                   // Si es el último item y debemos mostrar el indicador de escritura
                   if (showTypingIndicator && index == 0) {
-                    debugPrint('🔵 message_screen.itemBuilder: Mostrando indicador de escritura');
+                    debugPrint('🔵 itemBuilder: Mostrando indicador de escritura');
                     return _buildAITypingBubble(context, user!);
                   }
                   
                   // Ajustar el índice para acceder a los mensajes
                   final int messageIndex = showTypingIndicator ? index - 1 : index;
                   
-                  debugPrint('🔵 message_screen.itemBuilder: messageIndex=$messageIndex después de ajuste');
-                  
                   // Validar que el índice esté dentro del rango
                   if (messageIndex < 0 || messageIndex >= messages.length) {
-                    debugPrint('⚠️ message_screen.itemBuilder: messageIndex fuera de rango (messageIndex=$messageIndex, messages.length=${messages.length})');
+                    debugPrint('⚠️ itemBuilder: Índice fuera de rango: messageIndex=$messageIndex, messages.length=${messages.length}');
                     return const SizedBox.shrink();
                   }
-                
-                final Message message = messages[messageIndex];
-                
-                debugPrint('🔵 message_screen.itemBuilder: Mensaje encontrado: msgId=${message.msgId}, type=${message.type}, index=$messageIndex');
-                
-                // Debug log para mensajes de imagen
-                if (message.type == MessageType.image) {
-                  debugPrint('🖼️ message_screen.itemBuilder: Mensaje de imagen ${message.msgId}, fileUrl: ${message.fileUrl.isEmpty ? "VACÍO" : message.fileUrl.substring(0, message.fileUrl.length > 50 ? 50 : message.fileUrl.length)}...');
-                  debugPrint('🖼️ message_screen.itemBuilder: messageIndex=$messageIndex, totalMessages=${messages.length}');
-                  debugPrint('🖼️ message_screen.itemBuilder: isSender=${message.isSender}, senderId=${message.senderId}');
-                }
+                  
+                  final Message message = messages[messageIndex];
+                  
+                  // Log para TODOS los mensajes
+                  debugPrint('📨 itemBuilder: Procesando mensaje - msgId=${message.msgId}, type=${message.type}');
+                  
+                  // FORZAR: Log específico para mensajes de imagen - MUY VISIBLE
+                  if (message.type == MessageType.image) {
+                    print('🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️ MENSAJE DE IMAGEN EN itemBuilder 🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️');
+                    print('   - index: $index, messageIndex: $messageIndex');
+                    print('   - msgId: ${message.msgId}');
+                    print('   - type: ${message.type}');
+                    print('   - fileUrl: ${message.fileUrl.isEmpty ? "VACÍO" : message.fileUrl.substring(0, message.fileUrl.length > 50 ? 50 : message.fileUrl.length)}...');
+                    print('   - fileUrl length: ${message.fileUrl.length}');
+                    print('   - fileUrl startsWith http: ${message.fileUrl.startsWith("http")}');
+                    print('   - isSender: ${message.isSender}');
+                    print('   - senderId: ${message.senderId}');
+                    print('   - ⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️ CREANDO BUBBLEMESSAGE PARA IMAGEN ⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️');
+                    debugPrint('🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️ MENSAJE DE IMAGEN EN itemBuilder 🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️');
+                    debugPrint('   - index: $index, messageIndex: $messageIndex');
+                    debugPrint('   - msgId: ${message.msgId}');
+                    debugPrint('   - type: ${message.type}');
+                    debugPrint('   - fileUrl: ${message.fileUrl.isEmpty ? "VACÍO" : message.fileUrl.substring(0, message.fileUrl.length > 50 ? 50 : message.fileUrl.length)}...');
+                    debugPrint('   - fileUrl length: ${message.fileUrl.length}');
+                    debugPrint('   - fileUrl startsWith http: ${message.fileUrl.startsWith("http")}');
+                    debugPrint('   - isSender: ${message.isSender}');
+                    debugPrint('   - senderId: ${message.senderId}');
+                    debugPrint('   - ⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️ CREANDO BUBBLEMESSAGE PARA IMAGEN ⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️');
+                  }
 
                 // Message rendering
 
@@ -411,8 +547,20 @@ class MessageScreen extends StatelessWidget {
                               ? controller.messages[msgIndex] 
                               : message;
                           
+                          // FORZAR: Log para mensajes de imagen
                           if (currentMessage.type == MessageType.image) {
-                            debugPrint('🖼️ message_screen.AnimatedSwitcher.Obx: Mensaje de imagen ${currentMessage.msgId}, fileUrl=${currentMessage.fileUrl.isEmpty ? "VACÍO" : currentMessage.fileUrl.substring(0, currentMessage.fileUrl.length > 50 ? 50 : currentMessage.fileUrl.length)}..., messagesLength=$messagesLength, updateTrigger=$updateTrigger');
+                            print('🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️ message_screen.AnimatedSwitcher.Obx: Mensaje de imagen 🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️');
+                            print('   - msgId: ${currentMessage.msgId}');
+                            print('   - type: ${currentMessage.type}');
+                            print('   - fileUrl=${currentMessage.fileUrl.isEmpty ? "VACÍO" : currentMessage.fileUrl.substring(0, currentMessage.fileUrl.length > 50 ? 50 : currentMessage.fileUrl.length)}...');
+                            print('   - fileUrl length=${currentMessage.fileUrl.length}');
+                            print('   - fileUrl startsWith http=${currentMessage.fileUrl.startsWith("http")}');
+                            print('   - messagesLength=$messagesLength, updateTrigger=$updateTrigger');
+                            debugPrint('🖼️🖼️🖼️ message_screen.AnimatedSwitcher.Obx: Mensaje de imagen ${currentMessage.msgId}');
+                            debugPrint('   - fileUrl=${currentMessage.fileUrl.isEmpty ? "VACÍO" : currentMessage.fileUrl.substring(0, currentMessage.fileUrl.length > 50 ? 50 : currentMessage.fileUrl.length)}...');
+                            debugPrint('   - fileUrl length=${currentMessage.fileUrl.length}');
+                            debugPrint('   - fileUrl startsWith http=${currentMessage.fileUrl.startsWith("http")}');
+                            debugPrint('   - messagesLength=$messagesLength, updateTrigger=$updateTrigger');
                           }
                           
                           // Forzar observación de la lista accediendo a un elemento
@@ -423,7 +571,7 @@ class MessageScreen extends StatelessWidget {
                             // Key único que incluye fileUrl para mensajes de imagen, para que se reconstruya cuando cambia el fileUrl
                             // Usar hash del fileUrl completo para detectar cambios
                             key: currentMessage.type == MessageType.image 
-                                ? ValueKey('${currentMessage.msgId}_${currentMessage.fileUrl.hashCode}_${currentMessage.fileUrl.isEmpty ? "empty" : (currentMessage.fileUrl.startsWith('http') ? "remote" : "local")}')
+                                ? ValueKey('${currentMessage.msgId}_${currentMessage.fileUrl.isEmpty ? "empty" : (currentMessage.fileUrl.length > 100 ? currentMessage.fileUrl.substring(0, 100) : currentMessage.fileUrl)}')
                                 : ValueKey(currentMessage.msgId),
                             margin: controller.isMultiSelectMode.value
                                 ? const EdgeInsets.symmetric(vertical: 1.0)
@@ -441,19 +589,42 @@ class MessageScreen extends StatelessWidget {
                                             group: group!,
                                             message: currentMessage,
                                           )
-                                        : BubbleMessage(
-                                            message: currentMessage,
-                                            user: user,
-                                            group: group,
-                                            controller: controller,
-                                            onTapProfile: currentMessage.isSender
-                                                ? null
-                                                : () => RoutesHelper.toProfileView(
-                                                    senderUser, isGroup),
-                                            onReplyMessage: currentMessage.isDeleted
-                                                ? null
-                                                : () => controller.replyToMessage(currentMessage),
-                                          ),
+                                        : (() {
+                                            // Log para TODOS los mensajes
+                                            print('💬💬💬💬💬💬💬💬💬💬💬💬💬💬💬💬💬💬💬💬 Creando BubbleMessage 💬💬💬💬💬💬💬💬💬💬💬💬💬💬💬💬💬💬💬💬');
+                                            print('   - msgId: ${currentMessage.msgId}');
+                                            print('   - type: ${currentMessage.type}');
+                                            debugPrint('💬💬💬💬💬💬💬💬💬💬 Creando BubbleMessage 💬💬💬💬💬💬💬💬💬💬');
+                                            debugPrint('   - msgId: ${currentMessage.msgId}');
+                                            debugPrint('   - type: ${currentMessage.type}');
+                                            
+                                            // DEBUG: Log antes de crear BubbleMessage
+                                            if (currentMessage.type == MessageType.image) {
+                                              print('🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️ Creando BubbleMessage para IMAGEN 🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️');
+                                              print('   - msgId: ${currentMessage.msgId}');
+                                              print('   - fileUrl: ${currentMessage.fileUrl.isEmpty ? "VACÍO" : currentMessage.fileUrl.substring(0, currentMessage.fileUrl.length > 50 ? 50 : currentMessage.fileUrl.length)}...');
+                                              print('   - fileUrl length: ${currentMessage.fileUrl.length}');
+                                              print('   - fileUrl startsWith http: ${currentMessage.fileUrl.startsWith("http")}');
+                                              debugPrint('🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️ Creando BubbleMessage para IMAGEN 🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️');
+                                              debugPrint('   - msgId: ${currentMessage.msgId}');
+                                              debugPrint('   - fileUrl: ${currentMessage.fileUrl.isEmpty ? "VACÍO" : currentMessage.fileUrl.substring(0, currentMessage.fileUrl.length > 50 ? 50 : currentMessage.fileUrl.length)}...');
+                                              debugPrint('   - fileUrl length: ${currentMessage.fileUrl.length}');
+                                              debugPrint('   - fileUrl startsWith http: ${currentMessage.fileUrl.startsWith("http")}');
+                                            }
+                                            return BubbleMessage(
+                                              message: currentMessage,
+                                              user: user,
+                                              group: group,
+                                              controller: controller,
+                                              onTapProfile: currentMessage.isSender
+                                                  ? null
+                                                  : () => RoutesHelper.toProfileView(
+                                                      senderUser, isGroup),
+                                              onReplyMessage: currentMessage.isDeleted
+                                                  ? null
+                                                  : () => controller.replyToMessage(currentMessage),
+                                            );
+                                          })(),
                                   ),
                                 ),
                               ),
@@ -467,7 +638,6 @@ class MessageScreen extends StatelessWidget {
               },
             ),
           );
-        });
         }
       },
     );

@@ -297,6 +297,15 @@ class _SigninOrSignupScreenState extends State<SigninOrSignupScreen>
   }
 
   Widget _buildWelcomeScreen() {
+    // Detectar si es tablet para hacer responsive
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isTablet = screenWidth > 600;
+    // Tamaños mucho más grandes para iPad
+    final greetingFontSize = isTablet ? 96.0 : 42.0;
+    final arrowSize = isTablet ? 64.0 : 32.0;
+    final arrowSizeSmall = isTablet ? 56.0 : 28.0;
+    final hintFontSize = isTablet ? 28.0 : 14.0;
+    
     return Stack(
       children: [
           // Background video
@@ -326,96 +335,104 @@ class _SigninOrSignupScreenState extends State<SigninOrSignupScreen>
           
           // Main content
           SafeArea(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
-                children: [
-                  const Spacer(flex: 1),
-                  const SizedBox(height: 30),
-                  
-                  // Animated "Bienvenidos" in different languages - centered
-                  Center(
-                    child: AnimatedBuilder(
-                      animation: _animationController,
-                      builder: (context, child) {
-                        return Transform.translate(
-                          offset: Offset(0, _slideAnimation.value),
-                          child: Transform.scale(
-                            scale: _scaleAnimation.value,
-                            child: Opacity(
-                              opacity: _fadeAnimation.value,
-                              child: Text(
-                                _greetings[_currentIndex]['text']!,
-                                style: TextStyle(
-                                  fontSize: 42,
-                                  fontWeight: FontWeight.w600,
-                                  color: _colorAnimation.value,
-                                  letterSpacing: 1,
+            child: Center(
+              child: Container(
+                constraints: BoxConstraints(
+                  maxWidth: isTablet ? 800.0 : double.infinity,
+                ),
+                padding: EdgeInsets.symmetric(
+                  horizontal: isTablet ? 48 : 24,
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Spacer(flex: 1),
+                    const SizedBox(height: 30),
+                    
+                    // Animated "Bienvenidos" in different languages - centered
+                    Center(
+                      child: AnimatedBuilder(
+                        animation: _animationController,
+                        builder: (context, child) {
+                          return Transform.translate(
+                            offset: Offset(0, _slideAnimation.value),
+                            child: Transform.scale(
+                              scale: _scaleAnimation.value,
+                              child: Opacity(
+                                opacity: _fadeAnimation.value,
+                                child: Text(
+                                  _greetings[_currentIndex]['text']!,
+                                  style: TextStyle(
+                                    fontSize: greetingFontSize,
+                                    fontWeight: FontWeight.w600,
+                                    color: _colorAnimation.value,
+                                    letterSpacing: 1,
+                                  ),
+                                  textAlign: TextAlign.center,
                                 ),
-                                textAlign: TextAlign.center,
                               ),
                             ),
-                          ),
-                        );
-                      },
+                          );
+                        },
+                      ),
                     ),
-                  ),
-                  
-                  const Spacer(flex: 1),
+                    
+                    const Spacer(flex: 1),
 
-                  // Swipe hint with animated arrows
-                  if (_showSwipeHint)
-                    AnimatedBuilder(
-                      animation: Listenable.merge([_hintAppearController, _arrowAnimation]),
-                      builder: (context, child) {
-                        return Opacity(
-                          opacity: _hintFadeAnimation.value * (0.7 + (_arrowAnimation.value * 0.3)),
-                          child: Transform.translate(
-                            offset: Offset(0, _hintSlideAnimation.value),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                // Animated arrows
-                                Transform.translate(
-                                  offset: Offset(0, -_arrowAnimation.value * 10),
-                                  child: Column(
-                                    children: [
-                                      Icon(
-                                        Icons.keyboard_arrow_up,
-                                        color: Colors.white,
-                                        size: 32,
-                                      ),
-                                      SizedBox(height: 4),
-                                      Icon(
-                                        Icons.keyboard_arrow_up,
-                                        color: Colors.white.withOpacity(0.7),
-                                        size: 28,
-                                      ),
-                                    ],
+                    // Swipe hint with animated arrows
+                    if (_showSwipeHint)
+                      AnimatedBuilder(
+                        animation: Listenable.merge([_hintAppearController, _arrowAnimation]),
+                        builder: (context, child) {
+                          return Opacity(
+                            opacity: _hintFadeAnimation.value * (0.7 + (_arrowAnimation.value * 0.3)),
+                            child: Transform.translate(
+                              offset: Offset(0, _hintSlideAnimation.value),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  // Animated arrows
+                                  Transform.translate(
+                                    offset: Offset(0, -_arrowAnimation.value * 10),
+                                    child: Column(
+                                      children: [
+                                        Icon(
+                                          Icons.keyboard_arrow_up,
+                                          color: Colors.white,
+                                          size: arrowSize,
+                                        ),
+                                        SizedBox(height: isTablet ? 8 : 4),
+                                        Icon(
+                                          Icons.keyboard_arrow_up,
+                                          color: Colors.white.withOpacity(0.7),
+                                          size: arrowSizeSmall,
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 12),
-                                // Text
-                                Text(
-                                  'Desliza hacia arriba',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w400,
-                                    letterSpacing: 0.5,
+                                  SizedBox(height: isTablet ? 20 : 12),
+                                  // Text
+                                  Text(
+                                    'Desliza hacia arriba',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: hintFontSize,
+                                      fontWeight: FontWeight.w400,
+                                      letterSpacing: 0.5,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
-                        );
-                      },
-                    )
-                  else
-                    const SizedBox(height: 60),
+                          );
+                        },
+                      )
+                    else
+                      SizedBox(height: isTablet ? 100 : 60),
 
-                  const SizedBox(height: 48),
-                ],
+                    SizedBox(height: isTablet ? 80 : 48),
+                  ],
+                ),
               ),
             ),
           ),

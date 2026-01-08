@@ -313,8 +313,16 @@ class ChatInputFieldState extends State<ChatInputField>
             }
           },
           sendImage: (File? image) async {
-            if (image == null) return;
+            print('🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️ sendImage CALLBACK LLAMADO 🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️🖼️');
+            print('   - image != null: ${image != null}');
+            print('   - image path: ${image?.path ?? "NULL"}');
+            if (image == null) {
+              print('   - ❌ image es null, retornando');
+              return;
+            }
+            print('   - ✅ Llamando a controller.sendMessage(MessageType.image, file: image)');
             await controller.sendMessage(MessageType.image, file: image);
+            print('   - ✅ sendMessage completado');
           },
           sendVideo: (File? video) async {
             if (video == null) return;

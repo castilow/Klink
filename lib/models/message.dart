@@ -159,8 +159,24 @@ class Message {
   }
 
   // Get message type
-  static MessageType getMsgType(String type) {
-    return MessageType.values.firstWhere((el) => el.name == type);
+  static MessageType getMsgType(String? type) {
+    if (type == null || type.isEmpty) {
+      print('⚠️⚠️⚠️ getMsgType: type es null o vacío, devolviendo MessageType.text por defecto');
+      debugPrint('⚠️ getMsgType: type es null o vacío, devolviendo MessageType.text por defecto');
+      return MessageType.text;
+    }
+    
+    try {
+      final msgType = MessageType.values.firstWhere((el) => el.name == type);
+      print('✅ getMsgType: type="$type" -> $msgType');
+      return msgType;
+    } catch (e) {
+      print('❌❌❌ getMsgType: ERROR - type="$type" no encontrado en enum, devolviendo MessageType.text por defecto');
+      print('❌ Error: $e');
+      debugPrint('❌ getMsgType: ERROR - type="$type" no encontrado en enum, devolviendo MessageType.text por defecto');
+      debugPrint('❌ Error: $e');
+      return MessageType.text;
+    }
   }
 
   factory Message.fromMap({
@@ -215,9 +231,50 @@ class Message {
     }
 
     // Debug: Log fileUrl para mensajes de imagen
-    final String fileUrl = data['fileUrl'] ?? '';
-    if (getMsgType(data['type']) == MessageType.image) {
-      debugPrint('📸 Message.fromMap: Mensaje de imagen ${messageId}, fileUrl: ${fileUrl.isEmpty ? "VACÍO" : fileUrl.substring(0, fileUrl.length > 50 ? 50 : fileUrl.length)}...');
+    // IMPORTANTE: Asegurar que fileUrl se lee correctamente desde Firebase
+    String fileUrl = '';
+    if (data['fileUrl'] != null) {
+      fileUrl = data['fileUrl'].toString();
+    }
+    
+    // LOG CRÍTICO: Verificar el tipo ANTES de procesar
+    final rawType = data['type'];
+    final parsedType = getMsgType(rawType);
+    
+    // VALIDACIÓN CRÍTICA: Si el tipo es image pero fileUrl está vacío, es un error
+    if (parsedType == MessageType.image && fileUrl.isEmpty) {
+      print('❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌ ERROR CRÍTICO: Mensaje de imagen sin fileUrl ❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌');
+      print('   - msgId: $messageId');
+      print('   - rawType desde Firestore: "$rawType"');
+      print('   - parsedType: $parsedType');
+      print('   - fileUrl: VACÍO');
+      print('   - data completo: $data');
+      debugPrint('❌ ERROR CRÍTICO: Mensaje de imagen sin fileUrl - msgId=$messageId, data=$data');
+    }
+    
+    print('🔍🔍🔍 Message.fromMap: PROCESANDO MENSAJE 🔍🔍🔍');
+    print('   - msgId: $messageId');
+    print('   - rawType desde Firestore: "$rawType" (${rawType.runtimeType})');
+    print('   - parsedType: $parsedType');
+    print('   - fileUrl: ${fileUrl.isEmpty ? "VACÍO" : fileUrl.substring(0, fileUrl.length > 50 ? 50 : fileUrl.length)}...');
+    print('   - fileUrl length: ${fileUrl.length}');
+    debugPrint('🔍 Message.fromMap: msgId=$messageId, rawType="$rawType", parsedType=$parsedType');
+    
+    if (parsedType == MessageType.image) {
+      debugPrint('📸 [MESSAGE_FROM_MAP] Mensaje de imagen detectado');
+      debugPrint('📸 [MESSAGE_FROM_MAP] - msgId: $messageId');
+      debugPrint('📸 [MESSAGE_FROM_MAP] - fileUrl raw: ${data['fileUrl']}');
+      debugPrint('📸 [MESSAGE_FROM_MAP] - fileUrl type: ${data['fileUrl'].runtimeType}');
+      debugPrint('📸 [MESSAGE_FROM_MAP] - fileUrl: ${fileUrl.isEmpty ? "VACÍO" : (fileUrl.length > 80 ? fileUrl.substring(0, 80) + "..." : fileUrl)}');
+      debugPrint('📸 [MESSAGE_FROM_MAP] - fileUrl length: ${fileUrl.length}');
+      debugPrint('📸 [MESSAGE_FROM_MAP] - fileUrl es local: ${fileUrl.startsWith("/")}');
+      debugPrint('📸 [MESSAGE_FROM_MAP] - fileUrl es remoto: ${fileUrl.startsWith("http")}');
+      
+      // Si fileUrl está vacío pero es un mensaje de imagen, es un error crítico
+      if (fileUrl.isEmpty) {
+        debugPrint('❌❌❌ [MESSAGE_FROM_MAP] ERROR CRÍTICO: Mensaje de imagen sin fileUrl ❌❌❌');
+        debugPrint('❌ [MESSAGE_FROM_MAP] - data completo: $data');
+      }
     }
     
     final String loadedSenderId = data['senderId'] ?? '';
@@ -287,12 +344,29 @@ class Message {
       });
     }
 
+    // IMPORTANTE: Asegurar que fileUrl siempre se guarda como String, nunca como null
+    final String safeFileUrl = fileUrl.isNotEmpty ? fileUrl : '';
+    
+    // Debug para mensajes de imagen
+    if (type == MessageType.image) {
+      debugPrint('💾 [MESSAGE_TO_MAP] Guardando mensaje de imagen en Firestore');
+      debugPrint('💾 [MESSAGE_TO_MAP] - msgId: $msgId');
+      debugPrint('💾 [MESSAGE_TO_MAP] - fileUrl original: ${fileUrl.isEmpty ? "VACÍO" : (fileUrl.length > 80 ? fileUrl.substring(0, 80) + "..." : fileUrl)}');
+      debugPrint('💾 [MESSAGE_TO_MAP] - safeFileUrl: ${safeFileUrl.isEmpty ? "VACÍO" : (safeFileUrl.length > 80 ? safeFileUrl.substring(0, 80) + "..." : safeFileUrl)}');
+      debugPrint('💾 [MESSAGE_TO_MAP] - fileUrl length: ${fileUrl.length}');
+      debugPrint('💾 [MESSAGE_TO_MAP] - safeFileUrl length: ${safeFileUrl.length}');
+      
+      if (safeFileUrl.isEmpty) {
+        debugPrint('❌❌❌ [MESSAGE_TO_MAP] ERROR: Intentando guardar mensaje de imagen sin fileUrl ❌❌❌');
+      }
+    }
+    
     return {
       'msgId': msgId,
       'senderId': senderId,
       'type': type.name,
       'textMsg': isGroup ? textMsg : EncryptHelper.encrypt(textMsg, msgId),
-      'fileUrl': fileUrl,
+      'fileUrl': safeFileUrl, // Usar safeFileUrl en lugar de fileUrl directamente
       'gifUrl': gifUrl,
       'location': location?.toMap(),
       'videoThumbnail': videoThumbnail,
